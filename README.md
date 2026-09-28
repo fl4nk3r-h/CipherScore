@@ -6,12 +6,12 @@ This folder is the engineering source of truth for the proposed system. The slid
 
 | # | Document | What it covers |
 |---|----------|----------------|
-| 1 | [ARCHITECTURE.md](./ARCHITECTURE.md) | High-Level Design (HLD): context, containers, data flow, deployment topologies, quality attributes |
-| 2 | [LOW_LEVEL_DESIGN.md](./LOW_LEVEL_DESIGN.md) | Low-Level Design (LLD): packet parsing, feature algebra, ML models, scoring math, database schema, sequence diagrams |
-| 3 | [MODULES.md](./MODULES.md) | Specification of each module (M1–M6 plus platform services): responsibilities, interfaces, dependencies |
-| 4 | [API_REFERENCE.md](./API_REFERENCE.md) | REST, WebSocket, and internal gRPC/stream contracts with request/response schemas |
-| 5 | [REPO_STRUCTURE.md](./REPO_STRUCTURE.md) | Monorepo layout, ownership, and naming and coding conventions |
-| 6 | [IMPLEMENTATION_STRATEGY.md](./IMPLEMENTATION_STRATEGY.md) | Phased roadmap, milestones, testing, MLOps, risk register, definition of done |
+| 1 | [ARCHITECTURE.md](.docs/ARCHITECTURE.md) | High-Level Design (HLD): context, containers, data flow, deployment topologies, quality attributes |
+| 2 | [LOW_LEVEL_DESIGN.md](.docs/LOW_LEVEL_DESIGN.md) | Low-Level Design (LLD): packet parsing, feature algebra, ML models, scoring math, database schema, sequence diagrams |
+| 3 | [MODULES.md](.docs/MODULES.md) | Specification of each module (M1–M6 plus platform services): responsibilities, interfaces, dependencies |
+| 4 | [API_REFERENCE.md](.docs/API_REFERENCE.md) | REST, WebSocket, and internal gRPC/stream contracts with request/response schemas |
+| 5 | [REPO_STRUCTURE.md](.docs/REPO_STRUCTURE.md) | Monorepo layout, ownership, and naming and coding conventions |
+| 6 | [IMPLEMENTATION_STRATEGY.md](.docs/IMPLEMENTATION_STRATEGY.md) | Phased roadmap, milestones, testing, MLOps, risk register, definition of done |
 
 ---
 
@@ -46,4 +46,4 @@ This folder is the engineering source of truth for the proposed system. The slid
 
 ## 3. Scope of this repository
 
-This repository currently holds the **ideation deck** (Next.js). The system in these documents is **proposed and not yet implemented**. Code paths such as `services/api/...` refer to the target monorepo layout defined in [REPO_STRUCTURE.md](./REPO_STRUCTURE.md).
+This repository currently holds the **ideation deck** (Next.js). The system in these documents is **proposed and not yet implemented**. Code paths such as `services/api/...` refer to the target monorepo layout defined in [REPO_STRUCTURE.md](.docs/REPO_STRUCTURE.md).
