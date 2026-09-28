@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+web/.next/
+
+# Runtime data (see data/README.md)
+data/
+!data/README.md
+!data/.gitignore
+
+# Model artifacts are versioned via releases; keep registry + structure
+models/*/
+!models/registry.json
+!models/README.md
+
+# Dataset binaries ship as release assets / LFS
+dataset/pcaps/*
+dataset/keys/*
+dataset/features/*.parquet
+!dataset/README.md
+!dataset/agent.md
+
+# Lab leftovers
+lab/**/*.swp
+
+# OS
+.DS_Store

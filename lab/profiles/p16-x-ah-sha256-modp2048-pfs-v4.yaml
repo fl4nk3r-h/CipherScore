@@ -1,0 +1,13 @@
+id: p16
+ike_version: 2
+mode: transport
+ip_family: ipv4
+nat_t: false
+ike_proposal: aes256cbc-sha256-modp2048
+esp_proposal: ah-sha256-modp2048   # AH only (RFC 4302), optional profile
+pfs: true
+ike_lifetime: 4h
+child_rekey_time: 10m
+replay_window: 64
+traffic: [icmp, web, email, voip, video, messaging, bulk]
+duration_per_traffic: 120s

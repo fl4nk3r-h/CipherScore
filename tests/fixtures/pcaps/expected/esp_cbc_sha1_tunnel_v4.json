@@ -1,0 +1,8 @@
+{
+  "description": "Golden inferences for esp_cbc_sha1_tunnel_v4.pcapng (mvp.md §3.3 Step 3)",
+  "cipher_mode": { "value": "CBC", "tag": "inferred", "confidence_min": 0.95 },
+  "icv_len": { "value": 12, "tag": "inferred", "confidence_min": 0.95 },
+  "integ_family": { "value": "HMAC-SHA1-96", "tag": "inferred" },
+  "mode_offset": "tunnel adds +20 B inner IPv4 header",
+  "key_size": { "value": null, "tag": "unknown", "note": "never observable from ESP bytes (mvp.md §3.4, §13)" }
+}

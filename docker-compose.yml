@@ -1,0 +1,30 @@
+# CipherScope MVP services (docs/repo.md §11). Lab runs separately via docker-compose.lab.yml.
+services:
+  api:
+    build: ./api
+    ports: ["8000:8000"]
+    volumes:
+      - ./data:/data
+      - ./models:/models:ro
+      - ./rules:/rules:ro
+    environment:
+      CS_DATA_DIR: /data
+      CS_MODELS_DIR: /models
+      CS_RULES_DIR: /rules
+      CS_MAX_UPLOAD_MB: "500"
+      CS_LIVE_ENABLED: "false"
+    # cap_add: [NET_RAW, NET_ADMIN]   # uncomment only for live mode
+
+  web:
+    build: ./web
+    ports: ["3000:3000"]
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    depends_on: [api]
+
+  capture:
+    build: ./capture
+    network_mode: "container:lab-bridge-tap"   # attaches to the lab bridge
+    cap_add: [NET_RAW, NET_ADMIN]
+    volumes:
+      - ./data/sessions:/sessions

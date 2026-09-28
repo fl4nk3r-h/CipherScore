@@ -1,0 +1,9 @@
+{
+  "description": "Golden inferences for ikev1_main_mode_3des_modp1024.pcapng (mvp.md §3.3 Step 2)",
+  "ike_version": { "value": 1, "tag": "observed", "confidence": 1.0 },
+  "exchange": "Main Mode",
+  "aggressive_mode": false,
+  "enc_offered": ["3DES"],
+  "dh_offered": ["MODP-1024"],
+  "notes": "Weak suite: CRYPTO-001 (DH 2), CRYPTO-002 (3DES) expected to fire"
+}

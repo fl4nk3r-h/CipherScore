@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CipherScope lab VPN profile",
+  "type": "object",
+  "required": ["id", "ike_version", "mode", "ip_family", "nat_t", "ike_proposal",
+               "esp_proposal", "pfs", "ike_lifetime", "child_rekey_time",
+               "replay_window", "traffic", "duration_per_traffic"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^p[0-9]{2}$" },
+    "ike_version": { "enum": [1, 2] },
+    "mode": { "enum": ["tunnel", "transport"] },
+    "ip_family": { "enum": ["ipv4", "ipv6"] },
+    "nat_t": { "type": "boolean" },
+    "ike_proposal": { "type": "string" },
+    "esp_proposal": {
+      "type": "string",
+      "description": "Cipher-integrity[-dh]. A trailing DH group means PFS on (mvp.md §3.1). 'ah-...' selects AH-only (profile p16)."
+    },
+    "pfs": { "type": "boolean" },
+    "ike_lifetime": { "type": "string", "pattern": "^[0-9]+[hms]$" },
+    "child_rekey_time": { "type": "string", "pattern": "^[0-9]+[hms]$" },
+    "replay_window": { "type": "integer", "minimum": 0 },
+    "traffic": {
+      "type": "array",
+      "items": { "enum": ["icmp", "web", "email", "voip", "video", "messaging", "bulk"] },
+      "minItems": 1
+    },
+    "duration_per_traffic": { "type": "string", "pattern": "^[0-9]+[hms]$" }
+  }
+}

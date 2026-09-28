@@ -1,0 +1,13 @@
+id: p08
+ike_version: 2
+mode: transport
+ip_family: ipv6
+nat_t: false
+ike_proposal: aes256gcm16-prfsha384-ecp256   # Curve25519 (DH 31) negotiated as ECP fallback in proposal string
+esp_proposal: aes256gcm16-curve25519
+pfs: true
+ike_lifetime: 4h
+child_rekey_time: 10m
+replay_window: 64
+traffic: [icmp, web, email, voip, video, messaging, bulk]
+duration_per_traffic: 120s

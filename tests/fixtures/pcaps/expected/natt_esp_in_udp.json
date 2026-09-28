@@ -1,0 +1,8 @@
+{
+  "description": "Golden inferences for natt_esp_in_udp.pcapng (mvp.md §3.3 Step 1)",
+  "demux": {
+    "esp_in_udp": "UDP/4500 first 4 bytes non-zero (SPI)",
+    "ike_natt": "UDP/4500 first 4 bytes 0x00000000 (non-ESP marker) then IKE"
+  },
+  "nat_t": { "value": true, "tag": "observed", "confidence": 1.0 }
+}

@@ -1,0 +1,46 @@
+# Stricter pack (repo.md §9): CNSA 2.0 — AES-256(-GCM), ECP-384+, SHA-384+.
+
+- id: CNSA-ENC-001
+  title: Encryption below CNSA 2.0 (AES-256-GCM required)
+  category: configuration_compliance
+  when: "not (sa.enc == 'AES-GCM-16' and sa.key_bits == 256)"
+  severity: high
+  likelihood: 0.8
+  refs: ["NSA CNSA 2.0"]
+  fix: "Use AES-256-GCM-16 for ESP and IKE."
+
+- id: CNSA-DH-001
+  title: Key exchange below CNSA 2.0 (ECP-384+ required)
+  category: configuration_compliance
+  when: "not (sa.dh_group in ['ECP-384', 'ECP-521'])"
+  severity: high
+  likelihood: 0.8
+  refs: ["NSA CNSA 2.0"]
+  fix: "Use ECP-384 (or ECP-521) for IKE and CHILD_SA PFS."
+
+- id: CNSA-INT-001
+  title: PRF/integrity below CNSA 2.0 (SHA-384+ required)
+  category: configuration_compliance
+  when: "not (sa.integ in ['AEAD', 'HMAC-SHA2-384-192', 'HMAC-SHA2-512-256'])"
+  severity: medium
+  likelihood: 0.7
+  refs: ["NSA CNSA 2.0"]
+  fix: "Prefer AEAD (GCM) or HMAC-SHA2-384/512."
+
+- id: CNSA-PFS-001
+  title: PFS disabled under CNSA 2.0 policy
+  category: forward_secrecy
+  when: "sa.pfs == false"
+  severity: high
+  likelihood: 0.7
+  refs: ["NSA CNSA 2.0"]
+  fix: "Enable PFS with ECP-384 on every CHILD_SA rekey."
+
+- id: CNSA-PQ-001
+  title: No post-quantum readiness (informational)
+  category: configuration_compliance
+  when: "sa.dh_group not in ['ECP-521']"
+  severity: info
+  likelihood: 0.9
+  refs: ["RFC 9370", "NSA CNSA 2.0"]
+  fix: "Plan migration path for PQ/hybrid key exchange (RFC 9370); generating PQ traffic is deferred in the MVP."

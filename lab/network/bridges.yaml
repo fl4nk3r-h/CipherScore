@@ -1,0 +1,20 @@
+# Dual-stack lab addressing (mvp.md §3.1).
+#
+# Tunnel mode:    client-a -- gw-a === IPsec === gw-b -- server-b
+#                 10.1.0.10   172.30.0.2        172.30.0.3   10.2.0.10
+#                 fd01::10    fd30::2           fd30::3      fd02::10
+#
+# Transport mode: host-a === IPsec === host-b  (172.30.0.2 <-> 172.30.0.3,
+#                                               fd30::2    <-> fd30::3)
+
+lab_bridge:
+  v4: 172.30.0.0/24
+  v6: fd30::/64
+
+gateways:
+  gw-a: { v4: 172.30.0.2, v6: fd30::2 }
+  gw-b: { v4: 172.30.0.3, v6: fd30::3 }
+
+inner_nets:
+  site_a: { v4: 10.1.0.0/24, v6: fd01::/64, host: { v4: 10.1.0.10, v6: fd01::10 } }
+  site_b: { v4: 10.2.0.0/24, v6: fd02::/64, host: { v4: 10.2.0.10, v6: fd02::10 } }

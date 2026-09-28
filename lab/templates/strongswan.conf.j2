@@ -1,0 +1,18 @@
+{# strongSwan daemon settings (mvp.md §3.2): save-keys writes Wireshark-compatible key material. #}
+charon {
+  load_modular = yes
+  plugins {
+    include strongswan.d/charon/*.conf
+    save-keys {
+      esp = yes
+      ike = yes
+    }
+  }
+  filelog {
+    charon-log {
+      path = /var/log/charon.log
+      time_format_addon = %RTeMS
+      default = 1
+    }
+  }
+}

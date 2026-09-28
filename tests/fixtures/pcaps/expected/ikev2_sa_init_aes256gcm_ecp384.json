@@ -1,0 +1,9 @@
+{
+  "description": "Golden inferences for ikev2_sa_init_aes256gcm_ecp384.pcapng (mvp.md §3.3 Step 2)",
+  "ike_version": { "value": 2, "tag": "observed", "confidence": 1.0 },
+  "exchange": "IKE_SA_INIT",
+  "enc_chosen": { "value": "AES-GCM-16-256", "tag": "observed", "confidence": 1.0 },
+  "dh_group": { "value": "ECP-384", "tag": "observed", "confidence": 1.0 },
+  "ke_size": { "value": 96, "tag": "observed", "confidence": 1.0 },
+  "nat_t_hint": false
+}

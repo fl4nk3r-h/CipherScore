@@ -1,0 +1,8 @@
+# Tunnel vs Transport (mvp.md §3.4): LightGBM on size-offset features + endpoint heuristic.
+objective: binary
+n_estimators: 200
+learning_rate: 0.05
+num_leaves: 31
+random_state: 0
+calibration: isotonic
+target: accuracy >= 0.90 on held-out profiles

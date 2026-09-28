@@ -1,0 +1,52 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<section>
+  <h2>Security associations</h2>
+  {% for sa in sas %}
+  <h3>SA {{ sa.spi }} — {{ sa.peers | join(" ↔ ") }}</h3>
+  <table>
+    <tr><th>field</th><th>value</th><th>tag</th><th>confidence</th></tr>
+    {% for field in ["ike_version", "mode", "enc", "key_bits", "integ", "dh_group", "pfs", "nat_t", "rekey_interval_s", "replay_window"] %}
+    {% set v = sa[field] %}
+    {% if v %}
+    <tr>
+      <td>{{ field }}</td>
+      <td>{{ v.value }}</td>
+      <td class="tag tag-{{ v.tag }}">{{ v.tag }}</td>
+      <td>{{ "%.2f"|format(v.confidence) }}</td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+    {% if sa.traffic %}
+    <tr>
+      <td>traffic (in ESP)</td>
+      <td>{{ sa.traffic.top }} ({{ sa.traffic.conformal_set | join(", ") }})</td>
+      <td class="tag tag-inferred">inferred</td>
+      <td>{{ "%.2f"|format(sa.traffic.p) }}</td>
+    </tr>
+    {% endif %}
+  </table>
+  {% endfor %}
+</section>
+
+<section>
+  <h2>Findings and evidence</h2>
+  {% for f in findings %}
+  <div class="finding sev-{{ f.severity }}">
+    <strong>{{ f.rule_id }} · {{ f.title }}</strong>
+    <div>severity {{ f.severity }} · likelihood {{ f.likelihood }} · confidence {{ f.confidence }}</div>
+    <div>evidence: {{ f.evidence }}</div>
+    <div>refs: {{ f.refs | join("; ") }}</div>
+    <pre>{{ f.fix }}</pre>
+  </div>
+  {% endfor %}
+</section>
+
+<section>
+  <h2>Method and limitations</h2>
+  <p>Model card: ml/reports/model_card.md. Observed fields are read directly from
+  the capture (IKE_SA_INIT is cleartext); inferred fields carry calibrated confidence;
+  unknown means the capture did not contain the evidence (e.g. no rekey captured →
+  PFS unknown).</p>
+</section>
+{% endblock %}

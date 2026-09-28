@@ -1,0 +1,39 @@
+[project]
+name = "cipherscope-mvp"
+version = "0.1.0"
+description = "CipherScope MVP: passive IPsec VPN identification, assessment, and reporting from packet captures alone."
+requires-python = ">=3.11"
+
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sse-starlette",
+    "python-multipart",
+    "pydantic",
+    "dpkt",
+    "scapy",
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "lightgbm",
+    "scikit-learn",
+    "joblib",
+    "pyyaml",
+    "jinja2",
+    "weasyprint",
+    "playwright",
+    "httpx",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit", "tests/integration"]

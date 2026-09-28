@@ -1,0 +1,26 @@
+# Assessment categories (all 8 required by the problem statement, mvp.md §1.1(d)/§3.5)
+# and the scoring weights (§3.5).
+categories:
+  - id: cryptographic_strength
+    description: "3DES/DES present · AES-128 vs 256 against the chosen policy · HMAC-SHA1-96 integrity"
+  - id: configuration_compliance
+    description: "Profile checks against RFC 8221 (ESP), RFC 8247 (IKEv2), NIST SP 800-77r1, CNSA 2.0"
+  - id: sa_parameters
+    description: "Lifetime too long · ESN off on high-rate SAs · Aggressive Mode"
+  - id: key_lifetime
+    description: "CHILD_SA rekey over 8 h, IKE SA over 24 h, or no rekey observed on a long session"
+  - id: replay_protection
+    description: "Sequence numbers repeat or reset without an SPI change; replay window 0 inferred"
+  - id: forward_secrecy
+    description: "PFS off; weak DH group used for PFS"
+  - id: cipher_suite_strength
+    description: "Suite graded A–F from its combined algorithms"
+  - id: metadata_exposure
+    description: "Transport mode exposes real endpoints · IKEv1 Aggressive Mode identity leak · no TFC padding (M4 traffic confidence is the exposure measure)"
+
+severity_weights:   # Risk = sum(w_sev * likelihood * confidence)   (mvp.md §3.5)
+  info: 0
+  low: 1
+  medium: 3
+  high: 6
+  critical: 10

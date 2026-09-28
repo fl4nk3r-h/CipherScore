@@ -1,0 +1,13 @@
+# Sweep matrix (mvp.md §3.1): 16 profiles x 7 traffic types x 5 repetitions = 560 sessions.
+# Sweeping duration, packet sizes, and random seeds turns the base matrix into more than
+# 110 labeled sessions per run at demo scale and ~560 sessions for the dataset deliverable.
+defaults:
+  repetitions: 5
+  jitter: true            # vary packet sizes and random seeds between repetitions
+
+profiles: all              # or an explicit list: [p01, p03, p07]
+
+traffic: [icmp, web, email, voip, video, messaging, bulk]
+
+# Extra public captures may be added for external testing only (mvp.md §7, §12):
+# ISCX VPN-nonVPN 2016, CIC datasets.

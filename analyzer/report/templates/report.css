@@ -1,0 +1,23 @@
+/* CipherScope report styles (WeasyPrint-compatible subset). */
+body { font-family: sans-serif; font-size: 10pt; margin: 2cm; color: #111; }
+header h1 { font-size: 16pt; border-bottom: 2px solid #234; padding-bottom: 4px; }
+.meta { color: #555; }
+.score-row { display: flex; gap: 24px; align-items: center; }
+.gauge .score { font-size: 40pt; font-weight: bold; }
+.gauge .grade { font-size: 14pt; color: #234; }
+.kpis { list-style: none; padding: 0; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+th, td { border: 1px solid #999; padding: 4px 6px; text-align: left; }
+.tag-observed { color: #065f46; font-weight: bold; }
+.tag-inferred { color: #92400e; font-weight: bold; }
+.tag-unknown { color: #6b7280; font-style: italic; }
+.matrix td { text-align: center; min-width: 32px; }
+.sev-critical { background: #fee2e2; }
+.sev-high { background: #ffedd5; }
+.sev-medium { background: #fef9c3; }
+.sev-low { background: #ecfccb; }
+.finding { border-left: 4px solid #999; padding: 6px 10px; margin: 8px 0; }
+.finding.sev-critical { border-color: #dc2626; }
+.finding.sev-high { border-color: #ea580c; }
+.finding.sev-medium { border-color: #ca8a04; }
+footer { margin-top: 24px; font-size: 8pt; color: #666; }

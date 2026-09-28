@@ -1,0 +1,13 @@
+id: p04
+ike_version: 2
+mode: transport
+ip_family: ipv6
+nat_t: false
+ike_proposal: aes256cbc-sha256-ecp256
+esp_proposal: aes256cbc-sha256-ecp256
+pfs: true
+ike_lifetime: 4h
+child_rekey_time: 10m
+replay_window: 64
+traffic: [icmp, web, email, voip, video, messaging, bulk]
+duration_per_traffic: 120s

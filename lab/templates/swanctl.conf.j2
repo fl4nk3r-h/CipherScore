@@ -1,0 +1,49 @@
+{# Rendered by lab/runner/render.py from a validated profile YAML (mvp.md §3.1). #}
+connections {
+  {{ profile.id }} {
+    version = {{ profile.ike_version }}
+    proposals = {{ profile.ike_proposal }}
+    rekey_time = {{ profile.ike_lifetime }}
+    local  { auth = psk  id = gw-a }
+    remote { auth = psk  id = gw-b }
+    children {
+      {{ profile.id }}-child {
+{% if profile.ike_version == 1 %}
+{# IKEv1 profiles render through ipsec.conf.ikev1.j2 instead; this branch is a fallback. #}
+{% endif %}
+{% if profile.mode == "tunnel" %}
+        mode = tunnel
+{% else %}
+        mode = transport
+{% endif %}
+{% if profile.esp_proposal.startswith("ah-") %}
+        esp_proposals = none
+        ah_proposals = {{ profile.esp_proposal[3:] }}
+{% else %}
+        esp_proposals = {{ profile.esp_proposal }}
+{% endif %}
+        rekey_time = {{ profile.child_rekey_time }}
+        replay_window = {{ profile.replay_window }}
+{% if profile.ip_family == "ipv6" %}
+        local_ts  = fd01::/64
+        remote_ts = fd02::/64
+{% else %}
+        local_ts  = 10.1.0.0/24
+        remote_ts = 10.2.0.0/24
+{% endif %}
+{% if profile.pfs %}
+        {# PFS on: the DH group at the end of esp_proposal is used on CREATE_CHILD_SA rekey. #}
+{% else %}
+        {# PFS off: esp_proposal carries no DH group. #}
+{% endif %}
+      }
+    }
+  }
+}
+
+secrets {
+  ike-0 {
+    id = gw-a
+    secret = {{ psk }}
+  }
+}

@@ -1,0 +1,49 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<section class="score-row">
+  <div class="gauge">
+    <div class="score">{{ security_score }}</div>
+    <div class="grade">Grade {{ grade }}</div>
+  </div>
+  <ul class="kpis">
+    <li>Risk Score: {{ risk_score }}</li>
+    <li>AI Confidence: {{ "%.0f"|format(ai_confidence * 100) }}%</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Top 5 risks</h2>
+  <ol>
+    {% for f in top_findings %}
+    <li><strong>{{ f.title }}</strong> — {{ f.fix }}</li>
+    {% endfor %}
+  </ol>
+</section>
+
+<section>
+  <h2>Threat Matrix</h2>
+  <table class="matrix">
+    {% for row in threat_matrix %}
+    <tr>
+      {% for cell in row %}
+      <td class="sev-{{ cell.impact }}">{{ cell.findings | length }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+
+<section>
+  <h2>Compliance</h2>
+  <p>
+    RFC 8221 · RFC 8247 · NIST SP 800-77r1 · CNSA 2.0
+  </p>
+</section>
+
+<section>
+  <h2>Recommended actions (ranked by impact)</h2>
+  <ol>
+    {% for f in top_findings %}<li>{{ f.fix }}</li>{% endfor %}
+  </ol>
+</section>
+{% endblock %}

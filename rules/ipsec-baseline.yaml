@@ -1,0 +1,158 @@
+# CipherScope MVP default rule pack (mvp.md §3.5).
+# Categories (all 8 required by the problem statement):
+# cryptographic_strength, configuration_compliance, sa_parameters, key_lifetime,
+# replay_protection, forward_secrecy, cipher_suite_strength, metadata_exposure.
+# Risk = sum(w_sev * likelihood * confidence); weights {info:0, low:1, medium:3, high:6, critical:10}.
+
+- id: CRYPTO-001
+  title: Weak DH group in use
+  category: key_exchange
+  when: "sa.dh_group in [1, 2, 5, 'MODP-1024', 'MODP-1536']"
+  severity: high
+  likelihood: 0.7
+  refs: ["RFC 8247 §2.4", "NIST SP 800-77r1 §5"]
+  fix: "Use DH group 19, 20, or 31 (or 14 at minimum)."
+
+- id: CRYPTO-002
+  title: 3DES or DES encryption in use
+  category: cryptographic_strength
+  when: "sa.enc in ['3DES', 'DES']"
+  severity: critical
+  likelihood: 0.9
+  refs: ["RFC 8221 §4", "NIST SP 800-77r1 §4.13"]
+  fix: "Replace 3DES/DES with AES-CBC or AES-GCM (128/256-bit)."
+
+- id: CRYPTO-003
+  title: HMAC-SHA1-96 integrity in use
+  category: cryptographic_strength
+  when: "sa.integ == 'HMAC-SHA1-96'"
+  severity: medium
+  likelihood: 0.6
+  refs: ["RFC 8221 §3", "NIST SP 800-77r1 §4"]
+  fix: "Move to HMAC-SHA2-256-128 or AES-GCM (AEAD)."
+
+- id: CRYPTO-004
+  title: AES-128 below chosen policy (AES-256 expected)
+  category: cryptographic_strength
+  when: "sa.key_bits == 128"
+  severity: low
+  likelihood: 0.4
+  refs: ["NIST SP 800-77r1 §4.1"]
+  fix: "Prefer AES-256 where policy requires it (key size is inferred; verify against policy)."
+
+- id: COMP-001
+  title: Configuration non-compliant with CNSA 2.0 suite
+  category: configuration_compliance
+  when: "not (sa.enc == 'AES-GCM-16' and sa.key_bits == 256 and sa.dh_group in ['ECP-384', 'ECP-521'])"
+  severity: low
+  likelihood: 0.5
+  refs: ["NSA CNSA 2.0"]
+  fix: "Adopt AES-256-GCM with ECP-384+ key exchange for CNSA 2.0 readiness."
+
+- id: COMP-002
+  title: Weak suite vs NIST SP 800-77r1 (legacy MODP group)
+  category: configuration_compliance
+  when: "sa.dh_group in ['MODP-1024', 'MODP-1536']"
+  severity: high
+  likelihood: 0.7
+  refs: ["NIST SP 800-77r1 §5"]
+  fix: "Use MODP-2048 minimum; prefer ECP-256/384."
+
+- id: SA-001
+  title: ESN off on high-rate SA
+  category: sa_parameters
+  when: "sa.esn == false"
+  severity: info
+  likelihood: 0.3
+  refs: ["RFC 4303 §2.2"]
+  fix: "Enable Extended Sequence Numbers on high-rate SAs."
+
+- id: SA-002
+  title: IKEv1 Aggressive Mode in use
+  category: sa_parameters
+  when: "sa.ike_version == 1 and sa.mode == 'transport'"
+  severity: medium
+  likelihood: 0.5
+  refs: ["RFC 7296 §1", "NIST SP 800-77r1 §4"]
+  fix: "Migrate to IKEv2 (or enforce IKEv1 Main Mode)."
+
+- id: LIFE-001
+  title: CHILD_SA lifetime too long
+  category: key_lifetime
+  when: "sa.rekey_interval_s > 28800"
+  severity: medium
+  likelihood: 0.5
+  refs: ["NIST SP 800-77r1 §4.2", "RFC 8247 §4"]
+  fix: "Rekey CHILD_SAs at most every 8 h."
+
+- id: LIFE-002
+  title: IKE SA lifetime too long
+  category: key_lifetime
+  when: "sa.rekey_interval_s > 86400"
+  severity: low
+  likelihood: 0.5
+  refs: ["NIST SP 800-77r1 §4.2"]
+  fix: "Rekey the IKE SA at most every 24 h."
+
+- id: REPLAY-001
+  title: Replay protection disabled or defeated
+  category: replay_protection
+  when: "sa.replay_window == 0"
+  severity: high
+  likelihood: 0.8
+  refs: ["RFC 4303 §3.4.3", "NIST SP 800-77r1 §4.2"]
+  fix: "Set a non-zero anti-replay window (e.g. 64)."
+
+- id: PFS-001
+  title: Perfect Forward Secrecy disabled for CHILD_SA
+  category: forward_secrecy
+  when: "sa.pfs == false"
+  severity: medium
+  likelihood: 0.5
+  refs: ["NIST SP 800-77r1 §4.2"]
+  fix: "Add a DH group to esp_proposals to enable PFS on rekey."
+
+- id: PFS-002
+  title: Weak DH group used for PFS
+  category: forward_secrecy
+  when: "sa.pfs == true and sa.dh_group in [1, 2, 5, 'MODP-1024', 'MODP-1536']"
+  severity: high
+  likelihood: 0.6
+  refs: ["RFC 8247 §2.4"]
+  fix: "Use DH group 19, 20, or 31 for CHILD_SA PFS."
+
+- id: SUITE-001
+  title: Cipher suite graded below B (weak combination)
+  category: cipher_suite_strength
+  when: "sa.enc in ['3DES', 'DES'] or sa.integ == 'HMAC-SHA1-96'"
+  severity: high
+  likelihood: 0.6
+  refs: ["RFC 8221", "NIST SP 800-77r1"]
+  fix: "Adopt a suite graded A/B: AES-GCM-16 with SHA-384 PRF and ECP DH."
+
+- id: META-001
+  title: Transport mode exposes real endpoints
+  category: metadata_exposure
+  when: "sa.mode == 'transport'"
+  severity: medium
+  likelihood: 0.6
+  refs: ["RFC 4301 §3", "NIST SP 800-77r1 §4.1"]
+  fix: "Use tunnel mode to hide inner endpoints."
+
+- id: META-002
+  title: IKEv1 Aggressive Mode identity leak
+  category: metadata_exposure
+  when: "sa.ike_version == 1"
+  severity: medium
+  likelihood: 0.5
+  refs: ["NIST SP 800-77r1 §4"]
+  fix: "Use IKEv2; identities stay encrypted in IKE_AUTH."
+
+- id: META-003
+  title: Traffic classifiable inside ESP (no TFC padding)
+  category: metadata_exposure
+  when: "sa.traffic_confidence >= 0.7"
+  severity: medium
+  likelihood: 0.6
+  refs: ["RFC 4303 §2", "mvp.md §3.5"]
+  fix: "Enable TFC padding so packet sizes stop revealing the application."

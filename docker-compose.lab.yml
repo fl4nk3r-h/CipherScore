@@ -1,0 +1,59 @@
+# CipherScope MVP lab stack: strongSwan gateways, clients, servers, and the capture tap.
+# Topology and addressing come from lab/network/bridges.yaml (mvp.md §3.1):
+#   Tunnel: client-a(10.1.0.10/fd01::10) -- gw-a(172.30.0.2/fd30::2) === IPsec === gw-b(172.30.0.3/fd30::3) -- server-b(10.2.0.10/fd02::10)
+#   Transport: host-a(172.30.0.2/fd30::2) === IPsec === host-b(172.30.0.3/fd30::3)
+
+x-common: &lab-common
+  restart: "no"
+
+networks:
+  lab-bridge:
+    name: lab-bridge
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+        - subnet: fd30::/64
+
+services:
+  lab-bridge-tap:
+    # Idle container that holds the bridge attached for the capture sidecar
+    # (docker-compose.yml references network_mode: "container:lab-bridge-tap").
+    image: alpine:3.20
+    command: ["sleep", "infinity"]
+    networks: [lab-bridge]
+
+  gw-a:
+    build: ./lab/images/gateway
+    <<: *lab-common
+    container_name: gw-a
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+    cap_add: [NET_ADMIN, NET_RAW]
+    networks: [lab-bridge]
+
+  gw-b:
+    build: ./lab/images/gateway
+    <<: *lab-common
+    container_name: gw-b
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+    cap_add: [NET_ADMIN, NET_RAW]
+    networks: [lab-bridge]
+
+  client-a:
+    build: ./lab/images/client
+    <<: *lab-common
+    container_name: client-a
+    networks: [lab-bridge]
+
+  server-b:
+    build: ./lab/images/server
+    <<: *lab-common
+    container_name: server-b
+    networks: [lab-bridge]

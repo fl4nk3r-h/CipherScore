@@ -1,0 +1,32 @@
+# Citations used in reports (mvp.md §3.6 badges, §15 references).
+references:
+  - id: RFC 7296
+    title: "Internet Key Exchange Protocol Version 2 (IKEv2)"
+    url: "https://datatracker.ietf.org/doc/html/rfc7296"
+  - id: RFC 4303
+    title: "IP Encapsulating Security Payload (ESP)"
+    url: "https://datatracker.ietf.org/doc/html/rfc4303"
+  - id: RFC 4302
+    title: "IP Authentication Header (AH)"
+    url: "https://datatracker.ietf.org/doc/html/rfc4302"
+  - id: RFC 3948
+    title: "UDP Encapsulation of IPsec ESP Packets"
+    url: "https://datatracker.ietf.org/doc/html/rfc3948"
+  - id: RFC 4106
+    title: "The Use of Galois/Counter Mode (GCM) in IPsec ESP"
+    url: "https://datatracker.ietf.org/doc/html/rfc4106"
+  - id: RFC 8221
+    title: "Cryptographic Algorithm Implementation Requirements and Usage Guidance for ESP and AH"
+    url: "https://datatracker.ietf.org/doc/html/rfc8221"
+  - id: RFC 8247
+    title: "Algorithm Implementation Requirements and Usage Guidance for IKEv2"
+    url: "https://datatracker.ietf.org/doc/html/rfc8247"
+  - id: RFC 9370
+    title: "Multiple Key Exchanges in the Internet Key Exchange Protocol Version 2 (IKEv2)"
+    url: "https://datatracker.ietf.org/doc/html/rfc9370"
+  - id: NIST SP 800-77r1
+    title: "Guide to IPsec VPNs"
+    url: "https://csrc.nist.gov/pubs/sp/800/77/r1/final"
+  - id: CNSA 2.0
+    title: "NSA Commercial National Security Algorithm Suite 2.0"
+    url: "https://media.defense.gov/2022/Sep/07/2003071834/-1/-1/0/CSA_CNSA_2.0_ALGORITHMS_.PDF"

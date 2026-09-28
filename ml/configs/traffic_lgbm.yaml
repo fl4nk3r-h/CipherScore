@@ -1,0 +1,10 @@
+# Traffic-in-ESP classifier (7 classes, mvp.md §3.4).
+objective: multiclass
+num_class: 7
+n_estimators: 200
+learning_rate: 0.05
+num_leaves: 31
+random_state: 0
+calibration: isotonic
+conformal_alpha: 0.1
+target: macro_f1 >= 0.80 per SA, >= 0.70 per 5s window; ECE <= 0.08

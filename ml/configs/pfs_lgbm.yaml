@@ -1,0 +1,8 @@
+# PFS on/off (mvp.md §3.4): rule on CREATE_CHILD_SA size + LightGBM; "unknown" if no rekey captured.
+objective: binary
+n_estimators: 200
+learning_rate: 0.05
+num_leaves: 31
+random_state: 0
+calibration: isotonic
+target: accuracy >= 0.90 when a rekey was captured

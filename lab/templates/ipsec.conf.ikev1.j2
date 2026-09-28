@@ -1,0 +1,23 @@
+{# Legacy IKEv1 template (profiles p13, p14). strongSwan 5.x renders IKEv1 via ipsec.conf/stroke. #}
+config setup
+  uniqueids=yes
+
+conn {{ profile.id }}
+  keyexchange=ikev1
+  type={{ "tunnel" if profile.mode == "tunnel" else "transport" }}
+  authby=psk
+  ike={{ profile.ike_proposal }}
+  esp={{ profile.esp_proposal }}
+  ikelifetime={{ profile.ike_lifetime }}
+  lifetime={{ profile.child_rekey_time }}
+  {% if profile.pfs %}pfs=yes{% else %}pfs=no{% endif %}
+  {% if profile.ip_family == "ipv6" %}
+  leftsubnet=fd01::/64
+  rightsubnet=fd02::/64
+  {% else %}
+  leftsubnet=10.1.0.0/24
+  rightsubnet=10.2.0.0/24
+  {% endif %}
+  left=%defaultroute
+  right=172.30.0.3
+  auto=start

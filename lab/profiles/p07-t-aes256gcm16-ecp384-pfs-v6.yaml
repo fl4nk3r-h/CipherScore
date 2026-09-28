@@ -1,0 +1,13 @@
+id: p07
+ike_version: 2
+mode: tunnel
+ip_family: ipv6
+nat_t: false
+ike_proposal: aes256gcm16-prfsha384-ecp384
+esp_proposal: aes256gcm16-ecp384   # DH group listed here => PFS on
+pfs: true
+ike_lifetime: 4h
+child_rekey_time: 10m   # short on purpose so rekeys appear in captures
+replay_window: 64
+traffic: [icmp, web, email, voip, video, messaging, bulk]
+duration_per_traffic: 120s

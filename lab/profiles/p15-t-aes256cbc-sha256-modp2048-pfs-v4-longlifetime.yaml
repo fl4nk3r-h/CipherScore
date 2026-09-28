@@ -1,0 +1,13 @@
+id: p15
+ike_version: 2
+mode: tunnel
+ip_family: ipv4
+nat_t: false
+ike_proposal: aes256cbc-sha256-modp2048
+esp_proposal: aes256cbc-sha256-modp2048
+pfs: true
+ike_lifetime: 24h       # long lifetime on purpose
+child_rekey_time: 24h   # long: a short capture will see no rekey (PFS unknown case)
+replay_window: 0        # replay protection disabled on purpose
+traffic: [icmp, web, email, voip, video, messaging, bulk]
+duration_per_traffic: 120s

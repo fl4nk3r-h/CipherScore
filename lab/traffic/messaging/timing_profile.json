@@ -1,0 +1,7 @@
+{
+  "description": "Message size and timing distributions reproducing the characteristics of public WhatsApp traffic datasets (mvp.md §3.1). Real WhatsApp cannot be scripted in an isolated lab; this profile reproduces its size and timing. Optional: route a real phone through gw-a for validation.",
+  "text":   { "size_bytes": [40, 400],         "interval_s": [1.0, 8.0] },
+  "image":  { "size_bytes": [20000, 400000],   "interval_s": [20.0, 90.0] },
+  "voice":  { "size_bytes": [8000, 120000],    "interval_s": [30.0, 120.0] },
+  "burst":  { "probability": 0.2, "messages": [2, 6], "gap_s": [0.2, 1.5] }
+}
