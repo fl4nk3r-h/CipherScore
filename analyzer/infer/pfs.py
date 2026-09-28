@@ -10,8 +10,8 @@ CREATE_CHILD_SA makes it noticeably larger -> PFS on (§3.3).
 from __future__ import annotations
 
 from analyzer.models import TaggedValue
-from analyzer.parse.ike import IKESession
 from analyzer.parse import ike_constants as C
+from analyzer.parse.ike import IKESession
 
 # Typical IKE_AUTH / CREATE_CHILD_SA message sizes; a KE payload adds the DH
 # public value (e.g. +256 B for MODP-2048, +64 B for ECP-256) plus overhead.

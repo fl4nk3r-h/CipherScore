@@ -47,3 +47,7 @@ This folder is the engineering source of truth for the proposed system. The slid
 ## 3. Scope of this repository
 
 This repository currently holds the **ideation deck** (Next.js). The system in these documents is **proposed and not yet implemented**. Code paths such as `services/api/...` refer to the target monorepo layout defined in [REPO_STRUCTURE.md](.docs/REPO_STRUCTURE.md).
+
+## 4. Two-person team split (equal burden)
+
+The MVP implementation is split between two engineers with **equal workload and no skill assumptions**: **Person A — Testbed & Data** (`lab/`, `capture/`, `ml/`, `models/`, `dataset/`; milestones M-A, M-B, M-D) and **Person B — Engine & Product** (`analyzer/`, `rules/`, `api/`, `web/`; milestones M-C, M-E, M-F). Ownership, the frozen interface contract, and the week-by-week plan are in [`docs/team_split.md`](docs/team_split.md). Every module folder also carries an `agent.md` pinning its MVP responsibilities, inputs, outputs, and boundaries.

@@ -55,5 +55,5 @@ def test_weights_match_spec():
 
 def test_sandbox_blocks_eval(rules_dir):
     from analyzer.posture import expressions
-    with pytest.raises(Exception):
+    with pytest.raises((ValueError, TypeError)):
         expressions.evaluate("__import__('os').system('id')", {"sa": {}})

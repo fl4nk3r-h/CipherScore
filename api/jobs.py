@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import queue
 import threading
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Callable
 
 from analyzer import pipeline
 
@@ -52,8 +52,9 @@ def submit(analysis_id: str, pcap_path: Path, rule_pack: str,
     def run() -> None:
         try:
             pipeline.run_analysis(pcap_path, rule_pack=rule_pack,
-                                  on_progress=progress, out_dir=None)
-        except Exception as exc:  # surface failures on the stream
+                                  on_progress=progress, out_dir=None,
+                                  analysis_id=analysis_id)
+        except Exception as exc:  # noqa: BLE001 — job isolation: any failure must surface on the stream
             _publish(analysis_id, {"event": "failed", "error": str(exc)})
         finally:
             if on_done:

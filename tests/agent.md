@@ -1,5 +1,7 @@
 # agent.md — `tests/` (cross-module tests + reference PCAPs)
 
+**Owners: shared** — fixture data + golden ground truth: Person A; unit/API/e2e suites: Person B (see [docs/team_split.md](../docs/team_split.md)).
+
 **Source of truth: `docs/mvp.md` §3.3, §3.4, §3.5, §9 (milestones), §14 (definition of done); layout per `docs/repo.md` §9. Nothing here adds, removes, or reinterprets an MVP requirement.**
 
 ## Mission

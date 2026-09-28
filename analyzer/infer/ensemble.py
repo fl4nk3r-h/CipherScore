@@ -7,31 +7,32 @@ from pathlib import Path
 
 from analyzer import config
 from analyzer.features.esp_structure import StructureResult
-from analyzer.models import SAEvidence, TaggedValue
-from analyzer.parse.ike import IKESession
-from analyzer.parse.sa_tracker import SATrack, TrackerResult
-
 from analyzer.infer import cipher, loader, mode, pfs, rules_based, traffic
+from analyzer.models import SAEvidence
+from analyzer.parse.sa_tracker import SATrack, TrackerResult
 
 
 def infer_sa(track: SATrack, struct: StructureResult, tracker: TrackerResult,
              windows_preds: list[tuple[str | None, float | None]],
-             models_dir: Path | None = None) -> SAEvidence:
+             models_dir: Path | None = None,
+             offsets: dict[str, float] | None = None,
+             ike_enc_chosen: str | None = None) -> SAEvidence:
     models_dir = models_dir or config.MODELS_DIR
+    offsets = offsets or {}
 
     mode_pack = loader.load_task("mode", str(models_dir))
     pfs_pack = loader.load_task("pfs", str(models_dir))
     cipher_pack = loader.load_task("cipher", str(models_dir))
     traffic_pack = loader.load_task("traffic", str(models_dir))
 
-    offsets: dict[str, float] = {}
     prior = mode.endpoint_heuristic(track, tracker)
 
     sa = SAEvidence(
         spi=f"0x{track.spi:08x}",
         peers=track.peers,
         nat_t=rules_based.nat_t(
-            any(s.nat_detection_seen for s in tracker.ike_sessions), track.udp_encapsulated),
+            any(s.nat_detection_seen for s in tracker.ike_sessions),
+            track.udp_encapsulated),
         mode=mode.infer_mode(
             track, offsets,
             prior=prior,
@@ -41,13 +42,13 @@ def infer_sa(track: SATrack, struct: StructureResult, tracker: TrackerResult,
         enc=cipher.cipher_mode(
             struct,
             model=cipher_pack[0] if cipher_pack else None,
-            features={"len_mean": struct.consistency} if cipher_pack else None,
+            features={"len_mean": offsets.get("mean_len", 0.0)} if cipher_pack else None,
         ),
         integ=cipher.integrity(struct),
         key_size=cipher.key_size(
-            None,
+            ike_enc_chosen,
             model=cipher_pack[0] if cipher_pack else None,
-            features=None,
+            features={"len_mean": offsets.get("mean_len", 0.0)} if cipher_pack else None,
         ),
         pfs=pfs.infer_pfs(
             tracker.ike_sessions,
@@ -55,12 +56,12 @@ def infer_sa(track: SATrack, struct: StructureResult, tracker: TrackerResult,
             features=None,
         ),
     )
-    if traffic_pack:
-        preds = [traffic.predict_window({"n_packets": 0}, traffic_pack[0],
-                                        traffic_pack[1])
+    if traffic_pack and windows_preds:
+        model, calibrator, _conformal_q, _order = traffic_pack
+        preds = [traffic.predict_window({"n_packets": 0}, model, calibrator)
                  for _ in windows_preds]
     else:
         preds = windows_preds
-    sa.traffic = traffic.aggregate_sa(preds, conformal_q=traffic_pack[2] if traffic_pack else None)
-    _ = TaggedValue  # keep import surface explicit for tagged fields
+    sa.traffic = traffic.aggregate_sa(
+        preds, conformal_q=traffic_pack[2] if traffic_pack else None)
     return sa

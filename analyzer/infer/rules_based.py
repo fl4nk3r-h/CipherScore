@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 from analyzer.models import TaggedValue
-from analyzer.parse import ike_constants as C
 from analyzer.parse.ike import IKESession, summarize_session
 
 

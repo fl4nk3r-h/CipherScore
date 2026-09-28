@@ -1,5 +1,7 @@
 # agent.md — `rules/` (M5 rule packs)
 
+**Owner: Person B** (see [docs/team_split.md](../docs/team_split.md)).
+
 **Source of truth: `docs/mvp.md` §1.1(d), §3.5 (categories, example rules, scoring), §12, §13; layout per `docs/repo.md` §9. Nothing here adds, removes, or reinterprets an MVP requirement.**
 
 ## Mission

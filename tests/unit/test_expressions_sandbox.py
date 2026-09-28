@@ -31,10 +31,10 @@ def test_comparisons():
     "sa.x.y.z",
 ])
 def test_dangerous_expressions_rejected(expr):
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         expressions.evaluate(expr, {"sa": {"x": {}}})
 
 
 def test_unknown_name_rejected():
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         expressions.evaluate("evil in [1]", {"sa": {}})

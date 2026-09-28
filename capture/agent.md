@@ -1,5 +1,7 @@
 # agent.md — `capture/` (M2 CaptureMesh: traffic capture and labeling)
 
+**Owner: Person A** (see [docs/team_split.md](../docs/team_split.md)).
+
 **Source of truth: `docs/mvp.md` §0, §1.1(b), §3.2, §9, §13. Nothing here adds, removes, or reinterprets an MVP requirement.**
 
 ## Mission

@@ -1,5 +1,7 @@
 # agent.md — `docs/` (documentation)
 
+**Owners: shared** — `team_split.md` is the authority for who owns which folder (see [team_split.md](./team_split.md)).
+
 **Source of truth: the documents themselves (`mvp.md`, `repo.md`) and their companion references. Nothing here adds, removes, or reinterprets an MVP requirement.**
 
 ## Mission

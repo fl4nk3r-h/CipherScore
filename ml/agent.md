@@ -1,5 +1,7 @@
 # agent.md — `ml/` (offline training and evaluation for M4)
 
+**Owner: Person A** (see [docs/team_split.md](../docs/team_split.md)).
+
 **Source of truth: `docs/mvp.md` §3.4 (training loop, targets), §7 (dataset), §13 (risks); layout per `docs/repo.md` §5. Nothing here adds, removes, or reinterprets an MVP requirement.**
 
 ## Mission

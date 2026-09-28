@@ -7,6 +7,8 @@ directions.
 """
 from __future__ import annotations
 
+from itertools import pairwise
+
 from analyzer import config
 from analyzer.parse.esp import ESPRecord
 
@@ -25,7 +27,7 @@ def extract(sa_packets: list[ESPRecord], sa_id: str) -> list[dict]:
         if not win:
             return
         lens = [p.length for p in win]
-        iats = [b.ts - a.ts for a, b in zip(win, win[1:])]
+        iats = [b.ts - a.ts for a, b in pairwise(win)]
         up = sum(p.length for p in win if p.src == sa_packets[0].src)
         down = sum(p.length for p in win) - up
         # Bursts: runs of packets with IAT < 20 ms.

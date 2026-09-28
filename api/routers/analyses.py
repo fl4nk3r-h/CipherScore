@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import pathlib
 import uuid
 
 from fastapi import APIRouter, HTTPException
@@ -20,6 +21,25 @@ from api import db, events, jobs
 from api.repositories import analyses_repo
 
 router = APIRouter(prefix="/analyses", tags=["analyses"])
+
+
+def _lab_session_pcap(lab_session_id: str) -> pathlib.Path:
+    """Resolve a lab session to its capture via the session manifest (mvp.md §3.2).
+
+    Lab sessions are produced by the M2 sidecar, which writes
+    data/sessions/<session_id>/{pcapng, manifest.json}; they are not uploads,
+    so the capture table has no row for them.
+    """
+    from analyzer import config
+    session_dir = config.SESSIONS_DIR / lab_session_id
+    manifest_path = session_dir / "manifest.json"
+    if not manifest_path.exists():
+        raise HTTPException(404, "lab session not found")
+    manifest = json.loads(manifest_path.read_text())
+    pcap = session_dir / manifest["pcap"]
+    if not pcap.exists():
+        raise HTTPException(404, "lab session capture file missing")
+    return pcap
 
 
 @router.post("")
@@ -35,14 +55,9 @@ def start_analysis(body: dict) -> dict:
                                (capture_id,)).fetchone()
             if not row:
                 raise HTTPException(404, "capture not found")
-            pcap_path = row["path"]
+            pcap_path = pathlib.Path(row["path"])
         elif lab_session_id:
-            row = conn.execute(
-                "SELECT path FROM capture WHERE id LIKE 'sess_' || ?",
-                (lab_session_id,)).fetchone()
-            if not row:
-                raise HTTPException(404, "lab session capture not found")
-            pcap_path = row["path"]
+            pcap_path = _lab_session_pcap(lab_session_id)
         else:
             raise HTTPException(422, "capture_id or lab_session_id required")
     finally:
@@ -50,7 +65,7 @@ def start_analysis(body: dict) -> dict:
 
     analysis_id = f"an_{uuid.uuid4().hex[:8]}"
     analyses_repo.create(analysis_id, capture_id or lab_session_id, rule_pack)
-    jobs.submit(analysis_id, __import__("pathlib").Path(pcap_path), rule_pack,
+    jobs.submit(analysis_id, pcap_path, rule_pack,
                 on_done=lambda: analyses_repo.refresh_summary(analysis_id))
     return {"analysis_id": analysis_id, "status": "queued"}
 
@@ -87,4 +102,3 @@ def get_threat_matrix(analysis_id: str):
 def stream_events(analysis_id: str):
     q = jobs.subscribe(analysis_id)
     return events.sse_response(events.queue_to_sse(q))
-_ = json

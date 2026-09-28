@@ -1,5 +1,7 @@
 # agent.md — `analyzer/` (M3 Evidence Fusion · M4 Classifier Ensemble · M5 Posture Engine · M6 Report Studio)
 
+**Owner: Person B** (see [docs/team_split.md](../docs/team_split.md)).
+
 **Source of truth: `docs/mvp.md` §1.1(c)–(e), §3.3, §3.4, §3.5, §3.6, §5, §8, §12, §13. Nothing here adds, removes, or reinterprets an MVP requirement.**
 
 This package holds **all the analysis logic** and knows nothing about HTTP; the API and CLI both import it (repo.md §4). Output language is fixed: every statement in a result is tagged **observed / inferred / unknown** with an **AI confidence** (§3.4).

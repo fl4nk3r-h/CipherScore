@@ -130,7 +130,7 @@ def threat_matrix(analysis_id: str) -> list[list[dict]]:
     grid = [[{"likelihood_bucket": b, "impact": s, "findings": []}
              for s in sevs] for b in range(1, 6)]
     for f in findings(analysis_id):
-        b = min(5, max(1, int(f["likelihood"] * 5) + (1 if f["likelihood"] > 0 else 1)))
+        b = min(5, max(1, int(f["likelihood"] * 5) + 1))
         col = sevs.index(f["severity"]) if f["severity"] in sevs else 0
         grid[b - 1][col]["findings"].append({"rule_id": f["rule_id"],
                                              "evidence": f["evidence"]})

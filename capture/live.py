@@ -11,7 +11,6 @@ Requires NET_RAW/NET_ADMIN; live mode is disabled by default
 from __future__ import annotations
 
 import subprocess
-import time
 from pathlib import Path
 
 WINDOW_S = 10

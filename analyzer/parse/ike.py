@@ -81,9 +81,8 @@ def _parse_transforms(body: bytes) -> list[Transform]:
 def parse_ike_message(pkt: PacketRecord, sessions: dict[tuple, IKESession]) -> None:
     """Parse one UDP/500 or NAT-T IKE datagram, updating the session record."""
     payload = pkt.payload
-    if pkt.sport == 4500 or pkt.dport == 4500:
-        if payload[:4] == b"\x00\x00\x00\x00":   # non-ESP marker before IKE
-            payload = payload[4:]
+    if (pkt.sport == 4500 or pkt.dport == 4500) and payload[:4] == b"\x00\x00\x00\x00":
+        payload = payload[4:]   # non-ESP marker before IKE (RFC 3948)
 
     if len(payload) < 28:
         return
@@ -91,7 +90,7 @@ def parse_ike_message(pkt: PacketRecord, sessions: dict[tuple, IKESession]) -> N
     # RFC 7296 header: 0-7 init SPI, 8-15 resp SPI, 16 next payload,
     # 17 version, 18 exchange type, 19 flags, 20-23 msg id, 24-27 length.
     version_byte = payload[17]
-    major, minor = version_byte >> 4, version_byte & 0x0F
+    major = version_byte >> 4
     if major not in (1, 2):
         return
     exchange = payload[18]

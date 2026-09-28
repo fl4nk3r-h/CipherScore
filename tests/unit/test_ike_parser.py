@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import struct
 
-from analyzer.parse.ike import IKESession, _parse_transforms
 from analyzer.parse import ike_constants as C
+from analyzer.parse.ike import _parse_transforms
 from analyzer.parse.reader import PacketRecord
 
 
@@ -61,13 +61,29 @@ def test_exchange_type_tables():
 
 
 def test_aggressive_mode_flagged():
-    sess = IKESession(version=1, initiator="a", responder="b")
+    # IKEv1 header per RFC 2409: byte 17 = version 0x10 (major 1), byte 18 = exchange type.
+    payload = bytearray(28)
+    payload[17] = 0x10          # version: major 1, minor 0
+    payload[18] = 4             # 4 = Aggressive Mode
     pkt = PacketRecord(ts=0.0, src="a", dst="b", ip_proto=17, sport=500, dport=500,
-                       payload=b"", ip_version=4)
-    # simulate exchange type 4 path via summarize on a session with exchanges
-    pkt.payload = bytes(28)
-    pkt.payload = pkt.payload[:17] + bytes([4]) + pkt.payload[18:18] + bytes([32]) + pkt.payload[19:]
+                       payload=bytes(payload), ip_version=4)
     from analyzer.parse.ike import parse_ike_message
     sessions = {}
     parse_ike_message(pkt, sessions)
     assert any(s.aggressive_mode for s in sessions.values())
+
+
+def test_ikev2_version_and_exchange_read():
+    # byte 17 = 0x20 (IKEv2), byte 18 = 34 IKE_SA_INIT
+    payload = bytearray(28)
+    payload[17] = 0x20
+    payload[18] = 34
+    pkt = PacketRecord(ts=0.0, src="a", dst="b", ip_proto=17, sport=500, dport=500,
+                       payload=bytes(payload), ip_version=4)
+    from analyzer.parse.ike import parse_ike_message
+    sessions = {}
+    parse_ike_message(pkt, sessions)
+    assert len(sessions) == 1
+    sess = next(iter(sessions.values()))
+    assert sess.version == 2
+    assert sess.exchanges == [34]

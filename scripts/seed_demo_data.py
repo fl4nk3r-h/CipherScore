@@ -2,7 +2,6 @@
 milestone M-F: the demo runs without manual fixes)."""
 from __future__ import annotations
 
-import json
 import shutil
 from pathlib import Path
 

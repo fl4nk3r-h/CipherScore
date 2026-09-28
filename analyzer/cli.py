@@ -21,7 +21,8 @@ def main(argv: list[str] | None = None) -> int:
     an.add_argument("--rule-pack", default="ipsec-baseline")
     args = ap.parse_args(argv)
 
-    result = pipeline.run_analysis(args.pcap, rule_pack=args.rule_pack)
+    result = pipeline.run_analysis(args.pcap, rule_pack=args.rule_pack,
+                                   out_dir=args.out)
 
     out_dir = args.out
     out_dir.mkdir(parents=True, exist_ok=True)

@@ -7,11 +7,14 @@ and change it. Severity: info | low | medium | high | critical.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import get_args
 
 import yaml
 
-from analyzer.models import Finding, Severity
+from analyzer.models import Finding, Severity, TaggedValue
 from analyzer.posture import expressions
+
+SEVERITIES = get_args(Severity)
 
 
 def load_pack(rules_dir: Path, pack: str = "ipsec-baseline") -> list[dict]:
@@ -22,6 +25,8 @@ def load_pack(rules_dir: Path, pack: str = "ipsec-baseline") -> list[dict]:
         missing = required - set(r)
         if missing:
             raise ValueError(f"rule {r.get('id', '?')}: missing fields {sorted(missing)}")
+        if r["severity"] not in SEVERITIES:
+            raise ValueError(f"rule {r['id']}: bad severity {r['severity']!r}")
     return rules
 
 
@@ -53,19 +58,18 @@ def evaluate(inferences, rules_dir: Path,
     confidence of the evidence that triggered it (mvp.md §3.5 scoring)."""
     findings: list[Finding] = []
     for rule in load_pack(rules_dir, pack):
-        targets = getattr(inferences, "sas", None) or []
-        for sa in targets:
+        for sa in (getattr(inferences, "sas", None) or []):
             ctx = _sa_context(sa)
             try:
                 hit = expressions.evaluate(rule["when"], {"sa": ctx})
-            except ValueError:
+            except (ValueError, TypeError):
                 hit = False   # a rule over unknown values simply doesn't fire
             if hit:
                 findings.append(Finding(
                     rule_id=rule["id"],
                     title=rule["title"],
                     category=rule["category"],
-                    severity=Severity(rule["severity"]),
+                    severity=rule["severity"],
                     likelihood=float(rule["likelihood"]),
                     confidence=_evidence_confidence(sa, rule),
                     evidence={"spi": sa.spi, "when": rule["when"], "context": ctx},
@@ -83,9 +87,8 @@ def _evidence_confidence(sa, rule: dict) -> float:
                   "nat_t", "replay_window", "esn", "rekey_interval_s",
                   "ike_version"):
         v = getattr(sa, field, None)
-        if isinstance(v, TaggedValue) and v.tag != "unknown":
-            if field in rule["when"]:
-                confs.append(v.confidence)
+        if isinstance(v, TaggedValue) and v.tag != "unknown" and field in rule["when"]:
+            confs.append(v.confidence)
     if sa.traffic and "traffic" in rule["when"]:
         confs.append(sa.traffic.p)
     return round(min(confs), 4) if confs else 0.5

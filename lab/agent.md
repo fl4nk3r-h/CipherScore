@@ -1,5 +1,7 @@
 # agent.md — `lab/` (M1 LabForge: VPN testbed generation)
 
+**Owner: Person A** (see [docs/team_split.md](../docs/team_split.md)).
+
 **Source of truth: `docs/mvp.md` §0, §1.1, §3.1, §3.2, §9, §13. Nothing in this file adds, removes, or reinterprets an MVP requirement.**
 
 ## Mission

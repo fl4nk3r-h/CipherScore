@@ -11,6 +11,7 @@ import asyncio
 
 import websockets  # installed in the server image
 
+
 async def handler(ws) -> None:
     async for message in ws:
         # Echo pattern is enough to create realistic bidirectional traffic;

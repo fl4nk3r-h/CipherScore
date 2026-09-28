@@ -1,5 +1,7 @@
 # agent.md — `api/` (FastAPI REST + SSE service)
 
+**Owner: Person B** (see [docs/team_split.md](../docs/team_split.md)).
+
 **Source of truth: `docs/mvp.md` §2.1, §5 (API surface), §6 (data model), §8 (flow); layout per `docs/repo.md` §7, §11. Nothing here adds, removes, or reinterprets an MVP requirement.**
 
 ## Mission

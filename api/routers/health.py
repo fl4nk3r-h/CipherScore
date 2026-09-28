@@ -5,9 +5,7 @@ import json
 
 from fastapi import APIRouter
 
-from analyzer import __version__
-from analyzer import config
-from analyzer.infer import loader
+from analyzer import __version__, config
 
 router = APIRouter(tags=["health"])
 

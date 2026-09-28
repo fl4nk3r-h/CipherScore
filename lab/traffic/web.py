@@ -34,7 +34,7 @@ def main(base_url: str, duration: int) -> None:
             try:
                 page.goto(url, wait_until="load", timeout=10_000)
                 page.wait_for_timeout(500 + (i % 5) * 400)  # human-ish dwell time
-            except Exception as exc:  # keep generating on transient errors
+            except Exception as exc:  # noqa: BLE001 — keep generating on transient errors
                 print(f"warn: {url}: {exc}", file=sys.stderr)
             i += 1
         browser.close()

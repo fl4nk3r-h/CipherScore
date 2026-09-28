@@ -18,9 +18,11 @@ def test_cbc_consistency_formula():
 
 
 def test_gcm_consistency_formula():
-    # GCM: body - 8 - IV 8 - pad 4 - icv >= 0
-    assert _consistent("GCM", 16, 20 + 8 + 8 + 40 + 4 + 16, natt=False)
-    assert not _consistent("GCM", 16, 30, natt=False)
+    # GCM: body - 8 - IV 8 - pad 4 - icv >= 0 and ct 16-byte aligned
+    assert _consistent("GCM", 16, 40 + 8 + 8 + 32 + 4 + 16, natt=False, ip_version=6)
+    assert not _consistent("GCM", 16, 30, natt=False, ip_version=6)
+    # non-aligned plaintext fails
+    assert not _consistent("GCM", 12, 40 + 8 + 8 + 30 + 4 + 12, natt=False, ip_version=6)
 
 
 def test_analyze_picks_dominant_hypothesis():

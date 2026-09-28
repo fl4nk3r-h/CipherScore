@@ -9,7 +9,7 @@ SEVERITIES = ["info", "low", "medium", "high", "critical"]   # impact axis
 
 def bucket(likelihood: float) -> int:
     """Map likelihood [0,1] to bucket 1..5."""
-    return min(5, max(1, int(likelihood * 5) + (1 if likelihood > 0 else 1)))
+    return min(5, max(1, int(likelihood * 5) + 1))
 
 
 def build(findings: list[Finding]) -> list[list[dict]]:

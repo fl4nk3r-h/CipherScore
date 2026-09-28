@@ -6,11 +6,15 @@ A tcpdump sidecar on the lab bridge writes rotating captures per session:
 CLI:
     python3 capture.py start <session_id> [interface]
     python3 capture.py stop  <session_id>
+
+The stop command waits for the tcpdump child to exit so the final pcap is
+flushed, then renames the last rotated file to the canonical
+`<session_id>.pcapng` named in the manifest (§3.2).
 """
 from __future__ import annotations
 
 import argparse
-import signal
+import os
 import subprocess
 import sys
 import time
@@ -45,12 +49,31 @@ def stop(session_id: str) -> int:
         print(f"[capture] {session_id}: no running tcpdump", file=sys.stderr)
         return 1
     pid = int(pid_file.read_text().strip())
+    # SIGINT lets tcpdump flush buffers and write the pcap trailer cleanly.
     subprocess.run(["kill", "-INT", str(pid)], check=False)
-    proc = subprocess.run(["wait"], shell=True)  # flush the final pcap
+
+    # Wait for the process to actually exit so the final pcap is flushed.
+    for _ in range(50):                       # up to ~5 s
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.1)
+    else:
+        subprocess.run(["kill", "-9", str(pid)], check=False)
+
     started = (out / "started_at").read_text().strip()
     (out / "ended_at").write_text(str(int(time.time())))
+
+    # Canonical artifact name per §3.2: <session_id>.pcapng
+    rotated = sorted(out.glob("session_*.pcapng"))
+    canonical = out / f"{session_id}.pcapng"
+    if rotated and not canonical.exists():
+        largest = max(rotated, key=lambda p: p.stat().st_size)
+        largest.replace(canonical)
+    pid_file.unlink(missing_ok=True)
     print(f"[capture] {session_id}: stopped (started {started})")
-    return proc.returncode
+    return 0
 
 
 def main() -> int:

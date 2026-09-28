@@ -51,7 +51,7 @@ async def run(host: str, port: int, duration: int) -> None:
                 await ws.send(msg)
                 try:
                     await asyncio.wait_for(ws.recv(), timeout=2.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     pass
                 if time.monotonic() >= end:
                     return

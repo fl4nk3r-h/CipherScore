@@ -1,5 +1,7 @@
 # agent.md — `web/` (Next.js 16 dashboard)
 
+**Owner: Person B** (see [docs/team_split.md](../docs/team_split.md)).
+
 **Source of truth: `docs/mvp.md` §0, §4 (screens), §5 (API consumed), §8 (flow), §10 (demo behavior); layout per `docs/repo.md` §8. Nothing here adds, removes, or reinterprets an MVP requirement.**
 
 ## Mission

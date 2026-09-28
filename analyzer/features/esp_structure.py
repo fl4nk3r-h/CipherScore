@@ -21,32 +21,44 @@ class StructureResult:
     key_size_hint: None = None     # key size is NOT observable from ESP bytes (§3.3)
 
 
-def _consistent(mode: str, icv_len: int, length: int, natt: bool) -> bool:
-    body = length - 20 if not natt else length - 20 - 8   # minus outer IP (+ UDP)
+def _consistent(mode: str, icv_len: int, length: int, natt: bool,
+                ip_version: int = 4) -> bool:
+    # ESPRecord.length already includes the outer IP header (20 v4 / 40 v6).
+    outer = 20 if ip_version == 4 else 40
+    body = length - outer
+    if natt:
+        body -= 8                                            # minus UDP header
     if mode == "CBC":
         # header 8 + IV 16, then ciphertext padded to the 16-byte block, + ICV.
         payload = body - 8 - config.CBC_IV_LEN - icv_len
         return payload > 0 and payload % config.CBC_BLOCK == 0
-    # GCM: header 8 + IV 8 + cipher + pad 4 (incl. next header) + ICV.
+    # GCM: header 8 + IV 8 + cipher + pad 4 (incl. next header) + ICV; the
+    # plaintext (an IP datagram) is 16-byte aligned in tunnel mode (TFC off).
     payload = body - 8 - config.GCM_IV_LEN - config.GCM_PAD - icv_len
-    return payload >= 0
+    return payload >= 0 and payload % config.CBC_BLOCK == 0
 
 
 def analyze(sa_packets: list[ESPRecord]) -> StructureResult:
     if not sa_packets:
         return StructureResult(cipher_mode=None, icv_len=None, consistency=0.0)
     natt = any(p.udp_encapsulated for p in sa_packets)
-    best: tuple[float, str, int] | None = None
-    for mode in ("CBC", "GCM"):
+    ip_version = 6 if sa_packets and sa_packets[0].src.count(":") else 4
+    # Deterministic selection: highest consistency fraction wins; ties go to CBC
+    # (the more constrained hypothesis: strict 16-byte IV + block alignment), then
+    # to the smallest consistent ICV (parsimony).
+    best: tuple[float, int, str, int] | None = None   # (frac, mode_rank, mode, icv)
+    for cand_mode in ("CBC", "GCM"):
+        mode_rank = 0 if cand_mode == "CBC" else 1
         for icv in config.CANDIDATE_ICV_LENS:
-            hits = sum(1 for p in sa_packets if _consistent(mode, icv, p.length, natt))
+            hits = sum(1 for p in sa_packets
+                       if _consistent(cand_mode, icv, p.length, natt, ip_version))
             frac = hits / len(sa_packets)
-            if best is None or frac > best[0]:
-                best = (frac, mode, icv)
+            if best is None or (frac, -mode_rank, -icv) > (best[0], -best[1], -best[3]):
+                best = (frac, mode_rank, cand_mode, icv)
     assert best is not None
-    frac, mode, icv = best
+    frac, _rank, mode, icv = best
     return StructureResult(
-        cipher_mode=mode if frac >= 0.95 else mode,   # winner even below 95%; confidence carries the doubt
+        cipher_mode=mode,   # winner even below 95%; confidence carries the doubt
         icv_len=icv,
         consistency=frac,
     )

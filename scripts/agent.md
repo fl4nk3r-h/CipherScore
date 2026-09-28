@@ -1,5 +1,7 @@
 # agent.md — `scripts/` (helper scripts: demo, packaging, sanity checks)
 
+**Owners: split** — `sanity_check.py` + `package_dataset.sh`: Person A; `demo.sh` + `seed_demo_data.py`: Person B (see [docs/team_split.md](../docs/team_split.md)).
+
 **Source of truth: `docs/mvp.md` §4 (screen 8), §9 (milestone M-F), §10 (demo script), §14 (definition of done); layout per `docs/repo.md` §9. Nothing here adds, removes, or reinterprets an MVP requirement.**
 
 ## Mission

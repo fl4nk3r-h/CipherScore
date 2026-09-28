@@ -1,7 +1,9 @@
 """Sandboxed evaluator (repo.md §4): no eval(); whitelisted operators.
 
 Rule conditions like "sa.dh_group in [1, 2, 5]" (mvp.md §3.5) are evaluated
-against the SA context with a restricted AST walk.
+against the SA context with a restricted AST walk. YAML booleans parse as
+Python True/False; the lowercase YAML spellings (true/false/null) are accepted
+as names too.
 """
 from __future__ import annotations
 
@@ -29,6 +31,12 @@ def _eval(node: ast.AST, ctx: dict) -> object:
     if isinstance(node, ast.Name):
         if node.id in ctx:
             return ctx[node.id]
+        if node.id in ("true", "True"):
+            return True
+        if node.id in ("false", "False"):
+            return False
+        if node.id in ("null", "none", "None"):
+            return None
         raise ValueError(f"unknown name: {node.id}")
     if isinstance(node, ast.Attribute):
         base = _eval(node.value, ctx)
@@ -52,8 +60,19 @@ def _eval(node: ast.AST, ctx: dict) -> object:
             if type(cmp_op) not in _ALLOWED_CMPOPS:
                 raise ValueError(f"operator not allowed: {type(cmp_op).__name__}")
             right = _eval(comparator, ctx)
-            if not _ALLOWED_CMPOPS[type(cmp_op)](left, right):
+            # Unknown evidence (None) must never satisfy a rule: treat any
+            # failed/undefined comparison as non-firing (mvp.md §3.4).
+            if left is None or right is None:
                 return False
+            if type(cmp_op) in (ast.In, ast.NotIn):
+                if not _ALLOWED_CMPOPS[type(cmp_op)](left, right):
+                    return False
+            else:
+                try:
+                    if not _ALLOWED_CMPOPS[type(cmp_op)](left, right):
+                        return False
+                except TypeError:
+                    return False
             left = right
         return True
     raise ValueError(f"node not allowed: {type(node).__name__}")

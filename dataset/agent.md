@@ -1,5 +1,7 @@
 # agent.md — `dataset/` (dataset deliverable)
 
+**Owner: Person A** (see [docs/team_split.md](../docs/team_split.md)).
+
 **Source of truth: `docs/mvp.md` §3.2 (labels/keys), §3.4 (splits), §7 (dataset spec), §13 (limitations). Layout per `docs/repo.md` §9. Nothing here adds, removes, or reinterprets an MVP requirement.**
 
 ## Mission

@@ -42,7 +42,7 @@ def build(sessions_root: Path, out_dir: Path) -> None:
                 esp.append(rec)
         tracker = sa_tracker.build(esp, ike_sessions)
 
-        for spi, track in tracker.sas.items():
+        for spi in tracker.sas:   # values unused here; keys() would hide the loop pair
             recs = [r for r in esp if r.spi == spi]
             struct = esp_structure.analyze(recs)
             rows_sa.append({

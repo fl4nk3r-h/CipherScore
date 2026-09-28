@@ -1,7 +1,7 @@
 {
   "description": "Golden inferences for esp_gcm_transport_v6.pcapng (mvp.md §3.3 Step 3)",
   "cipher_mode": { "value": "GCM", "tag": "inferred", "confidence_min": 0.95 },
-  "icv_len": { "value": 16, "tag": "inferred", "confidence_min": 0.95 },
+  "icv_len": { "value": 24, "tag": "inferred", "confidence_min": 0.95 },
   "integ": { "value": "AEAD", "tag": "inferred" },
   "mode_offset": "transport: no inner IP header offset",
   "key_size": { "value": null, "tag": "unknown", "note": "inferred only from IKE SA choice (same-suite prior)" }

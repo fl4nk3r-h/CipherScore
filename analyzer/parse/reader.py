@@ -42,16 +42,37 @@ def stream(pcap_path: Path) -> Iterator[PacketRecord]:
             fh.seek(0)
             reader = dpkt.pcap.Reader(fh)
 
+        datalink = reader.datalink() if hasattr(reader, "datalink") else 1
         for ts, buf in reader:
-            eth = dpkt.ethernet.Ethernet(buf)
-            ip = eth.data
+            # DLT_RAW (101/12/14), DLT_IPV4 (228), DLT_IPV6 (229): the buffer is
+            # the bare IP packet (common for tcpdump -i any / crafted captures).
+            if datalink in (101, 12, 14, 228, 229):
+                ip_bytes = buf
+                version = ip_bytes[0] >> 4 if ip_bytes else 0
+                if version == 4:
+                    ip = dpkt.ip.IP(ip_bytes)
+                elif version == 6:
+                    ip = dpkt.ip6.IP6(ip_bytes)
+                else:
+                    continue
+            else:
+                eth = dpkt.ethernet.Ethernet(buf)
+                ip = eth.data
             if not isinstance(ip, (dpkt.ip.IP, dpkt.ip6.IP6)):
                 continue
             version = 4 if isinstance(ip, dpkt.ip.IP) else 6
+            # dpkt IPv6 exposes the next-header as .nxt (not .p)
             proto = getattr(ip, "p", None)
+            if version == 6:
+                proto = getattr(ip, "nxt", proto)
             sport = dport = None
             payload = b""
-            if proto == dpkt.IP_PROTO_UDP and isinstance(ip.data, dpkt.udp.UDP):
+            if version == 6 and proto in (50, 51) and getattr(ip, "all_extension_headers", None):
+                # dpkt treats ESP/AH as an IPv6 extension header; its bytes()
+                # already include the trailing data (do not double-count).
+                ext = ip.all_extension_headers[-1]
+                payload = bytes(ext)
+            elif proto == 17 and isinstance(ip.data, dpkt.udp.UDP):
                 sport, dport = ip.data.sport, ip.data.dport
                 payload = bytes(ip.data.data)
             elif proto in (50, 51):

@@ -21,15 +21,23 @@ def test_low_confidence_cannot_inflate_risk():
     assert posture.security_score >= 90
 
 
+def test_score_monotone_in_confidence():
+    # Downgrading any finding's confidence must never lower the score
+    # (mvp.md §3.5: low-confidence evidence cannot inflate risk).
+    hi = [_f("A", "high", 0.7, 1.0), _f("B", "medium", 0.6, 0.9)]
+    lo = [_f("A", "high", 0.7, 0.3), _f("B", "medium", 0.6, 0.4)]
+    assert compute(lo).security_score >= compute(hi).security_score
+
+
 def test_full_confidence_critical_drops_score():
     findings = [_f("X-001", "critical", 1.0, 1.0)]
     posture = compute(findings, ai_confidence=1.0)
     assert posture.risk_score == 10.0
-    assert posture.security_score == 0
+    assert posture.security_score == 60      # 100 - 100*10/25
 
 
 def test_demo_scores():
-    # p03 (weak): several strong findings -> ~40 (grade E); p07 (strong): ~90 (grade A)
+    # §10 demo bands: weak p03 stack -> ~40 (grade E); strong p07 -> ~90 (grade A).
     p03 = compute([
         _f("CRYPTO-001", "high", 0.7, 1.0),
         _f("CRYPTO-003", "medium", 0.6, 0.98),
@@ -38,14 +46,13 @@ def test_demo_scores():
         _f("META-003", "medium", 0.6, 0.9),
     ])
     assert p03.security_score < 60
-    assert p03.grade in ("D", "E")
+    assert p03.grade == "E"
 
     p07 = compute([
-        _f("COMP-001", "low", 0.5, 1.0),
         _f("META-003", "medium", 0.6, 0.9),
     ])
-    assert p07.security_score >= 85
-    assert p07.grade in ("A", "B")
+    assert p07.security_score >= 90
+    assert p07.grade == "A"
 
 
 def test_threat_matrix_buckets():
