@@ -7,6 +7,8 @@ from __future__ import annotations
 import json
 import uuid
 
+import yaml
+
 from analyzer import config
 from api import db
 
@@ -65,30 +67,100 @@ def summary(analysis_id: str) -> dict | None:
         row = conn.execute("SELECT * FROM analysis WHERE id = ?", (analysis_id,)).fetchone()
         if not row:
             return None
-        sev = {"critical": 0, "high": 0, "medium": 0, "low": 0}
-        for f in conn.execute(
-                "SELECT severity, COUNT(*) n FROM finding WHERE analysis_id = ? "
-                "GROUP BY severity", (analysis_id,)):
-            if f["severity"] in sev:
-                sev[f["severity"]] = f["n"]
-        top = [f["rule_id"] for f in conn.execute(
-            "SELECT rule_id FROM finding WHERE analysis_id = ? AND severity IN "
-            "('critical','high') LIMIT 5", (analysis_id,))]
-        return {
-            "analysis_id": analysis_id,
-            "status": row["status"],
-            "security_score": row["score"],
-            "grade": _grade(row["score"]) if row["score"] is not None else None,
-            "risk_score": row["risk"],
-            "ai_confidence": row["confidence"],
-            "sa_count": conn.execute(
-                "SELECT COUNT(*) n FROM sa WHERE analysis_id = ?",
-                (analysis_id,)).fetchone()["n"],
-            "findings": sev,
-            "top_findings": top,
-        }
+        return _summary(conn, row)
     finally:
         conn.close()
+
+
+def list_recent(limit: int = 50) -> list[dict]:
+    """Newest-first summaries for the Overview screen (mvp.md §4 screen 1).
+
+    Each item carries `created`, `capture_id`, and structured `top_findings`
+    (rule_id, title, severity, count) so the dashboard can render the trend,
+    the recent-analyses table, and top findings across captures from one call.
+    """
+    conn = db.connect()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM analysis ORDER BY created DESC, id DESC LIMIT ?",
+            (limit,)).fetchall()
+        titles = _rule_titles() if rows else {}
+        out = []
+        for row in rows:
+            item = _summary(conn, row)
+            item["created"] = row["created"]
+            item["capture_id"] = row["capture_id"]
+            item["top_findings"] = _top_findings(conn, row["id"], titles)
+            out.append(item)
+        return out
+    finally:
+        conn.close()
+
+
+def _summary(conn, row) -> dict:
+    analysis_id = row["id"]
+    sev = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    for f in conn.execute(
+            "SELECT severity, COUNT(*) n FROM finding WHERE analysis_id = ? "
+            "GROUP BY severity", (analysis_id,)):
+        if f["severity"] in sev:
+            sev[f["severity"]] = f["n"]
+    top = [f'{t["rule_id"]} {t["title"]}' if t["title"] != t["rule_id"]
+           else t["rule_id"]
+           for t in _top_findings(conn, analysis_id)]
+    return {
+        "analysis_id": analysis_id,
+        "status": row["status"],
+        "security_score": row["score"],
+        "grade": _grade(row["score"]) if row["score"] is not None else None,
+        "risk_score": row["risk"],
+        "ai_confidence": row["confidence"],
+        "sa_count": conn.execute(
+            "SELECT COUNT(*) n FROM sa WHERE analysis_id = ?",
+            (analysis_id,)).fetchone()["n"],
+        "findings": sev,
+        "top_findings": top,
+    }
+
+
+def _rule_titles() -> dict[str, str]:
+    """rule_id -> title from the plain-YAML rule pack (mvp.md §3.5)."""
+    titles: dict[str, str] = {}
+    for pack in sorted(config.RULES_DIR.glob("*.yaml")):
+        try:
+            rules = yaml.safe_load(pack.read_text())
+        except yaml.YAMLError:
+            continue
+        if not isinstance(rules, list):
+            continue
+        for rule in rules:
+            if isinstance(rule, dict) and rule.get("id"):
+                titles[str(rule["id"])] = str(rule.get("title") or rule["id"])
+    return titles
+
+
+def _top_findings(conn, analysis_id: str, titles: dict[str, str] | None = None,
+                  limit: int = 5) -> list[dict]:
+    """Most severe/most frequent findings of one analysis, with titles.
+
+    The rule pack is read lazily (only when findings exist) so live-polling the
+    summary of a running analysis does not touch the filesystem.
+    """
+    rows = conn.execute(
+        "SELECT rule_id, severity, COUNT(*) n FROM finding WHERE analysis_id = ? "
+        "GROUP BY rule_id, severity "
+        "ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 "
+        "WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, n DESC LIMIT ?",
+        (analysis_id, limit)).fetchall()
+    if not rows:
+        return []
+    if titles is None:
+        titles = _rule_titles()
+    return [{"rule_id": r["rule_id"],
+             "title": titles.get(r["rule_id"]) or r["rule_id"],
+             "severity": r["severity"],
+             "count": r["n"]} for r in rows]
+
 
 
 def _grade(score: float) -> str:
