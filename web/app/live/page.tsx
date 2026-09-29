@@ -8,6 +8,7 @@ import { useSSE } from "@/lib/use-sse";
 export default function Live() {
   const [running, setRunning] = useState(false);
   const [windows, setWindows] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const { lastEvent } = useSSE(running ? api.url("/live/events") : null);
 
@@ -21,12 +22,17 @@ export default function Live() {
   }, [lastEvent]);
 
   async function toggle() {
-    if (!running) {
-      await api.post("/live/start", {});
-    } else {
-      await api.post("/live/stop", {});
+    setError(null);
+    try {
+      if (!running) {
+        await api.post("/live/start", {});
+      } else {
+        await api.post("/live/stop", {});
+      }
+      setRunning(!running);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "live capture request failed");
     }
-    setRunning(!running);
   }
 
   return (
@@ -46,6 +52,7 @@ export default function Live() {
         Rolling 10 s windows on one interface; predictions update every 10 s.
         Requires the API to run with CS_LIVE_ENABLED=true.
       </p>
+      {error && <p className="text-sm text-red-400">Live capture could not start: {error}</p>}
       <div className="space-y-2">
         {windows.map((w, i) => (
           <div key={i} className="card flex items-center justify-between text-sm">
