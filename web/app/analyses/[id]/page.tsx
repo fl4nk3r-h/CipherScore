@@ -1,14 +1,18 @@
 "use client";
 // Screen 3 — Analysis Detail: Summary (mvp.md §4): Score gauge, Risk Score,
 // AI Confidence meter, Threat Matrix heatmap.
+import { use } from "react";
 import useSWR from "swr";
 import { api } from "@/lib/api";
 import { ScoreGauge } from "@/components/score-gauge";
 import { ThreatMatrix } from "@/components/threat-matrix";
+import type { MatrixCell, Summary } from "@/lib/types";
 
-export default function Summary({ params }: { params: { id: string } }) {
-  const { data } = useSWR(`/analyses/${params.id}`, api.fetcher);
-  const { data: matrix } = useSWR(`/analyses/${params.id}/threat-matrix`, api.fetcher);
+export default function Summary({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const { data } = useSWR<Summary>(`/analyses/${id}`, api.fetcher);
+  const { data: matrix } = useSWR<MatrixCell[]>(
+    `/analyses/${id}/threat-matrix`, api.fetcher);
 
   if (!data) return <p className="text-slate-500">loading…</p>;
   return (

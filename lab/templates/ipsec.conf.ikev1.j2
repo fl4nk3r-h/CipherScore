@@ -6,18 +6,16 @@ conn {{ profile.id }}
   keyexchange=ikev1
   type={{ "tunnel" if profile.mode == "tunnel" else "transport" }}
   authby=psk
-  ike={{ profile.ike_proposal }}
-  esp={{ profile.esp_proposal }}
+  ike={{ profile.ike_proposal | swan_prop }}
+  esp={{ profile.esp_proposal | swan_prop }}
   ikelifetime={{ profile.ike_lifetime }}
   lifetime={{ profile.child_rekey_time }}
-  {% if profile.pfs %}pfs=yes{% else %}pfs=no{% endif %}
-  {% if profile.ip_family == "ipv6" %}
-  leftsubnet=fd01::/64
-  rightsubnet=fd02::/64
-  {% else %}
-  leftsubnet=10.1.0.0/24
-  rightsubnet=10.2.0.0/24
-  {% endif %}
+  replay_window={{ profile.replay_window }}
+  {# strongSwan 5.x: 'pfs' keyword is deprecated; a DH group in esp= enables PFS. #}
+  {% if profile.pfs %}{# esp_proposal carries the DH group for PFS rekeying #}{% endif %}
+  {# Subnets are per-side (gw-a fronts 10.1/fd01, gw-b 10.2/fd02): role-aware via render.py. #}
+  leftsubnet={{ local_ts }}
+  rightsubnet={{ remote_ts }}
   left=%defaultroute
-  right=172.30.0.3
+  right={{ peer_addr }}
   auto=start

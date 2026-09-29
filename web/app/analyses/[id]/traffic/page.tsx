@@ -1,15 +1,19 @@
 "use client";
 // Screen 5 — Analysis Detail: Traffic (mvp.md §4): traffic-type donut,
 // per-window timeline, packet-size and IAT histograms, metadata exposure panel.
+import { use } from "react";
 import useSWR from "swr";
 import { api } from "@/lib/api";
 import { TrafficDonut } from "@/components/traffic-donut";
 import { HistogramChart } from "@/components/histogram-chart";
 import { ExposurePanel } from "@/components/exposure-panel";
+import type { SAEvidence } from "@/lib/types";
 
-export default function Traffic({ params }: { params: { id: string } }) {
-  const { data } = useSWR(`/analyses/${params.id}/traffic`, api.fetcher);
-  const { data: sas } = useSWR(`/analyses/${params.id}/sas`, api.fetcher);
+export default function Traffic({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const { data } = useSWR<{ pred: string | null; p: number | null; t0: number }[]>(
+    `/analyses/${id}/traffic`, api.fetcher);
+  const { data: sas } = useSWR<SAEvidence[]>(`/analyses/${id}/sas`, api.fetcher);
   if (!data) return <p className="text-slate-500">loading…</p>;
   return (
     <div className="space-y-4">

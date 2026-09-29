@@ -1,12 +1,14 @@
 "use client";
 // Screen 7 — Reports (mvp.md §4): preview and download of the Executive and
 // Technical PDFs + JSON.
+import { use } from "react";
 import useSWR from "swr";
 import { api } from "@/lib/api";
 
-export default function Reports({ params }: { params: { id: string } }) {
-  const base = api.url(`/analyses/${params.id}/reports`);
-  useSWR(`/analyses/${params.id}`, api.fetcher); // ensure analysis exists
+export default function Reports({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const base = api.url(`/analyses/${id}/reports`);
+  useSWR(`/analyses/${id}`, api.fetcher); // ensure analysis exists
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       {[

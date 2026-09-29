@@ -3,16 +3,17 @@
 # Video (ffmpeg), Messaging (WebSocket bot), Bulk (iperf3/scp).
 FROM debian:12-slim
 
+# Debian 12: SIPp is packaged as `sip-tester` (provides the sipp binary).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip curl ca-certificates \
     chromium \
     iputils-ping iproute2 \
     swaks \
-    sipp \
+    sip-tester \
     ffmpeg \
     iperf3 openssh-client \
  && rm -rf /var/lib/apt/lists/* \
- && python3 -m pip install --no-cache-dir playwright websocket-client
+ && python3 -m pip install --no-cache-dir --break-system-packages playwright websocket-client
 
 # Playwright driver bundle; chromium from Debian is used as the browser executable.
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/bin

@@ -2,10 +2,18 @@
 connections {
   {{ profile.id }} {
     version = {{ profile.ike_version }}
-    proposals = {{ profile.ike_proposal }}
+    {# Peer gateway per lab/network/bridges.yaml: role-aware via render.py. #}
+    remote_addrs = {{ peer_addr }}
+    proposals = {{ profile.ike_proposal | swan_prop }}
     rekey_time = {{ profile.ike_lifetime }}
-    local  { auth = psk  id = gw-a }
-    remote { auth = psk  id = gw-b }
+    local {
+      auth = psk
+      id = {{ local_id }}
+    }
+    remote {
+      auth = psk
+      id = {{ remote_id }}
+    }
     children {
       {{ profile.id }}-child {
 {% if profile.ike_version == 1 %}
@@ -17,20 +25,15 @@ connections {
         mode = transport
 {% endif %}
 {% if profile.esp_proposal.startswith("ah-") %}
-        esp_proposals = none
-        ah_proposals = {{ profile.esp_proposal[3:] }}
+        {# AH-only: any ah_proposals entry makes strongSwan use AH instead of ESP. #}
+        ah_proposals = {{ profile.esp_proposal[3:] | swan_prop }}
 {% else %}
-        esp_proposals = {{ profile.esp_proposal }}
+        esp_proposals = {{ profile.esp_proposal | swan_prop }}
 {% endif %}
         rekey_time = {{ profile.child_rekey_time }}
         replay_window = {{ profile.replay_window }}
-{% if profile.ip_family == "ipv6" %}
-        local_ts  = fd01::/64
-        remote_ts = fd02::/64
-{% else %}
-        local_ts  = 10.1.0.0/24
-        remote_ts = 10.2.0.0/24
-{% endif %}
+        local_ts  = {{ local_ts }}
+        remote_ts = {{ remote_ts }}
 {% if profile.pfs %}
         {# PFS on: the DH group at the end of esp_proposal is used on CREATE_CHILD_SA rekey. #}
 {% else %}
@@ -42,8 +45,12 @@ connections {
 }
 
 secrets {
-  ike-0 {
+  ike-a {
     id = gw-a
+    secret = {{ psk }}
+  }
+  ike-b {
+    id = gw-b
     secret = {{ psk }}
   }
 }

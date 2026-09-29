@@ -5,9 +5,15 @@ import { useState } from "react";
 import useSWR from "swr";
 import { api } from "@/lib/api";
 
+interface LabProfile {
+  id: string;
+  spec?: { mode?: string; ip_family?: string; esp_proposal?: string };
+}
+interface LabSession { session_id: string; traffic_type: string; labels?: unknown[] }
+
 export default function Lab() {
-  const { data: profiles } = useSWR("/lab/profiles", api.fetcher);
-  const { data: sessions } = useSWR("/lab/sessions", api.fetcher);
+  const { data: profiles } = useSWR<LabProfile[]>("/lab/profiles", api.fetcher);
+  const { data: sessions } = useSWR<LabSession[]>("/lab/sessions", api.fetcher);
   const [selected, setSelected] = useState<string[]>(["p03", "p07"]);
 
   async function run() {

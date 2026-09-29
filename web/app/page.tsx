@@ -6,8 +6,8 @@ import { ScoreGauge } from "@/components/score-gauge";
 import { api } from "@/lib/api";
 
 export default function Overview() {
-  const { data: health } = useSWR("/healthz", api.fetcher);
-  const { data: sessions } = useSWR("/lab/sessions", api.fetcher);
+  const { data: health } = useSWR<unknown>("/healthz", api.fetcher);
+  const { data: sessions } = useSWR<unknown[]>("/lab/sessions", api.fetcher);
 
   return (
     <div className="space-y-6">

@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from analyzer import config
 from analyzer.infer import loader
+from api import db
 from api.routers import analyses, captures, health, lab, live, reports
 
 TASKS = ("mode", "pfs", "cipher", "traffic")
@@ -20,6 +21,8 @@ TASKS = ("mode", "pfs", "cipher", "traffic")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Apply schema so a fresh data dir serves uploads/analyses out of the box.
+    db.migrate()
     # Preload model versions so analyses never pay cold-load latency.
     for task in TASKS:
         loader.load_task(task, str(config.MODELS_DIR))

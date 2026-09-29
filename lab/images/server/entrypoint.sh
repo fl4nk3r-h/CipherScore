@@ -2,15 +2,19 @@
 # server-b entrypoint: starts every service the traffic generators talk to (mvp.md §3.1).
 set -euo pipefail
 
+mkdir -p /var/www/hls
+
 # Web mirror + HLS video segments (video streaming generator pulls these).
 nginx
 
 # E-mail: SMTP (Postfix) + IMAP (Dovecot).
 service postfix start || postfix start
-service dovecot start || doveconf -n >/dev/null # fallback no-op if already configured
+service dovecot start || true
 
 # VoIP: SIPp UAS answers the UAC scenario from lab/traffic/voip/.
-sipp -sf /opt/uas.xml -m 10000 -i 172.30.0.3 -p 5060 >/var/log/sipp-uas.log 2>&1 &
+if [ -f /opt/uas.xml ]; then
+  sipp -sf /opt/uas.xml -m 10000 -i 172.30.0.3 -p 5060 >/var/log/sipp-uas.log 2>&1 &
+fi
 
 # Messaging: WebSocket chat server backing the WhatsApp-like bot.
 python3 /opt/chat_server.py --port 8080 >/var/log/chat.log 2>&1 &

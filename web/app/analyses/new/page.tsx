@@ -7,16 +7,17 @@ import { api } from "@/lib/api";
 import { UploadDropzone } from "@/components/upload-dropzone";
 
 export default function NewAnalysis() {
-  const { data: sessions } = useSWR("/lab/sessions", api.fetcher);
+  const { data: sessions } = useSWR<{ session_id: string; traffic_type: string; labels?: unknown[] }[]>(
+    "/lab/sessions", api.fetcher);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
 
   async function analyzeCapture(captureId: string) {
-    const res = await api.post("/analyses", { capture_id: captureId });
+    const res = await api.post<{ analysis_id: string }>("/analyses", { capture_id: captureId });
     setAnalysisId(res.analysis_id);
   }
 
   async function analyzeSession(sessionId: string) {
-    const res = await api.post("/analyses", { lab_session_id: sessionId });
+    const res = await api.post<{ analysis_id: string }>("/analyses", { lab_session_id: sessionId });
     setAnalysisId(res.analysis_id);
   }
 

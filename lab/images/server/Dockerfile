@@ -4,11 +4,11 @@ FROM debian:12-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx postfix dovecot-imapd \
-    sipp ffmpeg \
+    sip-tester ffmpeg \
     python3 python3-pip \
     iproute2 \
  && rm -rf /var/lib/apt/lists/* \
- && python3 -m pip install --no-cache-dir websockets
+ && python3 -m pip install --no-cache-dir --break-system-packages websockets
 
 COPY hls/ /var/www/hls/
 COPY chat_server.py /opt/chat_server.py

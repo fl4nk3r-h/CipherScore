@@ -1,15 +1,17 @@
 "use client";
 // Screen 6 — Analysis Detail: Findings (mvp.md §4): filterable findings list
 // -> evidence drawer (packets, features, rule, references, fix).
-import { useState } from "react";
+import { use, useState } from "react";
 import useSWR from "swr";
 import { api } from "@/lib/api";
 import { FindingsList } from "@/components/findings-list";
+import type { Finding } from "@/lib/types";
 
 const SEVS = ["all", "critical", "high", "medium", "low", "info"];
 
-export default function Findings({ params }: { params: { id: string } }) {
-  const { data } = useSWR(`/analyses/${params.id}/findings`, api.fetcher);
+export default function Findings({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const { data } = useSWR<Finding[]>(`/analyses/${id}/findings`, api.fetcher);
   const [sev, setSev] = useState("all");
   const [selected, setSelected] = useState<any>(null);
   if (!data) return <p className="text-slate-500">loading…</p>;
