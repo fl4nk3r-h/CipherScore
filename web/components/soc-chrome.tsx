@@ -3,13 +3,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Activity,
   Beaker,
   FileUp,
   LayoutDashboard,
   Radio,
-  ShieldAlert,
-  ShieldCheck,
 } from "lucide-react";
 import useSWR from "swr";
 import { api } from "@/lib/api";
@@ -18,74 +15,52 @@ const NAV = [
   {
     section: "Operations",
     items: [
-      { href: "/", label: "SOC Overview", icon: LayoutDashboard, match: (p: string) => p === "/" },
-      { href: "/analyses/new", label: "New Analysis", icon: FileUp, match: (p: string) => p.startsWith("/analyses") },
-      { href: "/live", label: "Live Intercept", icon: Radio, match: (p: string) => p.startsWith("/live") },
+      { href: "/", label: "Overview", icon: LayoutDashboard, match: (p: string) => p === "/" },
+      { href: "/analyses/new", label: "New analysis", icon: FileUp, match: (p: string) => p.startsWith("/analyses") },
+      { href: "/live", label: "Live intercept", icon: Radio, match: (p: string) => p.startsWith("/live") },
     ],
   },
   {
-    section: "Intel & Proof",
+    section: "Workspace",
     items: [
-      { href: "/lab", label: "Lab Matrix", icon: Beaker, match: (p: string) => p.startsWith("/lab") },
+      { href: "/lab", label: "Lab matrix", icon: Beaker, match: (p: string) => p.startsWith("/lab") },
     ],
   },
 ];
 
 function UtcClock() {
-  const [now, setNow] = useState("--:--:--");
+  const [now, setNow] = useState("--:--");
   useEffect(() => {
-    const f = () =>
-      setNow(
-        new Date().toISOString().slice(11, 19) + " UTC"
-      );
+    const f = () => setNow(new Date().toISOString().slice(11, 16) + " UTC");
     f();
-    const t = setInterval(f, 1000);
+    const t = setInterval(f, 10000);
     return () => clearInterval(t);
   }, []);
-  return <span className="soc-num text-[11px] text-slate-400">{now}</span>;
+  return <span className="soc-num text-xs text-zinc-500">{now}</span>;
 }
 
 export function SocChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: health, error } = useSWR("/healthz", (p: string) => api.fetcher(p).catch(() => null), {
-    refreshInterval: 15000,
+    refreshInterval: 30000,
     revalidateOnFocus: false,
   });
   const online = !!health && !error;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-zinc-950">
       {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-[#16223a] bg-[#060c17] lg:flex">
-        <div className="border-b border-[#16223a] px-4 py-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-cyan-500/15 ring-1 ring-cyan-500/40">
-              <ShieldCheck className="h-5 w-5 text-cyan-300" />
-            </div>
-            <div>
-              <div className="soc-num text-sm font-black tracking-widest text-slate-100">
-                CIPHER<span className="text-cyan-400">SCOPE</span>
-              </div>
-              <div className="soc-num text-[10px] uppercase tracking-[0.25em] text-slate-500">
-                SOC // IPsec Ops
-              </div>
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-2 rounded border border-[#1a2740] bg-black/40 px-2 py-1.5">
-            <span className={`h-2 w-2 rounded-full ${online ? "bg-emerald-400" : "bg-amber-400 soc-live-dot"}`} />
-            <span className="soc-num text-[10px] uppercase tracking-widest text-slate-400">
-              {online ? "sensor: online" : "sensor: demo feed"}
-            </span>
-          </div>
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-white/[0.06] bg-zinc-950 lg:flex">
+        <div className="px-5 pb-5 pt-6 text-center">
+          <div className="text-xl font-semibold tracking-tight text-zinc-50">CipherScope</div>
+          <div className="mt-0.5 text-[11px] text-zinc-500">IPsec security operations</div>
         </div>
 
-        <nav className="soc-scroll flex-1 overflow-y-auto px-3 py-3">
+        <nav className="soc-scroll flex-1 overflow-y-auto px-3">
           {NAV.map((g) => (
-            <div key={g.section} className="mb-4">
-              <div className="soc-num px-2 pb-1.5 text-[10px] uppercase tracking-[0.22em] text-slate-600">
-                {g.section}
-              </div>
-              <div className="space-y-1">
+            <div key={g.section} className="mb-5">
+              <div className="px-2 pb-1.5 text-[11px] font-medium text-zinc-600">{g.section}</div>
+              <div className="space-y-0.5">
                 {g.items.map((it) => {
                   const active = it.match(pathname);
                   const Icon = it.icon;
@@ -93,18 +68,16 @@ export function SocChrome({ children }: { children: React.ReactNode }) {
                     <Link
                       key={it.href}
                       href={it.href}
-                      className={`flex items-center gap-2.5 rounded px-2.5 py-2 text-[13px] transition-colors ${
+                      className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] transition-colors ${
                         active
-                          ? "border border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
-                          : "border border-transparent text-slate-400 hover:border-slate-700 hover:bg-slate-800/50 hover:text-slate-200"
+                          ? "bg-white/[0.07] font-medium text-zinc-50"
+                          : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
                       }`}
                     >
-                      <Icon className="h-4 w-4 shrink-0" />
+                      <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
                       {it.label}
                       {it.href === "/live" && (
-                        <span className="ml-auto flex items-center gap-1 text-[10px] text-red-400">
-                          <span className="soc-live-dot h-1.5 w-1.5 rounded-full bg-red-500" /> REC
-                        </span>
+                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-red-400" />
                       )}
                     </Link>
                   );
@@ -112,27 +85,19 @@ export function SocChrome({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           ))}
-
-          <div className="soc-panel mt-2 p-3">
-            <div className="flex items-center gap-1.5 text-amber-300">
-              <ShieldAlert className="h-3.5 w-3.5" />
-              <span className="soc-num text-[10px] font-bold uppercase tracking-widest">Analyst note</span>
-            </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
-              Encrypted ≠ opaque. ESP length + timing still leaks app class. Check the exposure panel
-              before closing a tunnel as “safe”.
-            </p>
-          </div>
         </nav>
 
-        <div className="border-t border-[#16223a] px-4 py-3">
+        <div className="border-t border-white/[0.06] p-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-[11px] font-bold text-slate-200">
-              A1
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold text-zinc-200">
+              A
             </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-200">Analyst-01</div>
-              <div className="soc-num text-[10px] text-slate-500">shift: night · tier-2</div>
+            <div className="min-w-0">
+              <div className="truncate text-[13px] font-medium text-zinc-200">Analyst</div>
+              <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+                <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-emerald-400" : "bg-amber-400"}`} />
+                {online ? "Sensor online" : "Demo feed"}
+              </div>
             </div>
           </div>
         </div>
@@ -140,37 +105,37 @@ export function SocChrome({ children }: { children: React.ReactNode }) {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col lg:pl-60">
-        <header className="sticky top-0 z-20 border-b border-[#16223a] bg-[#04070e]/90 backdrop-blur">
-          <div className="flex items-center gap-3 px-4 py-2.5 lg:px-6">
-            <span className="font-black tracking-widest text-cyan-400 lg:hidden">CIPHERSCOPE</span>
-            <nav className="ml-auto flex items-center gap-3">
-              <span className="soc-num hidden rounded border border-[#1a2740] bg-black/40 px-2 py-1 text-[10px] uppercase tracking-widest text-slate-400 md:inline">
-                env: lab-only · passive
-              </span>
+        <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-zinc-950/80 backdrop-blur">
+          <div className="flex items-center gap-3 px-4 py-3 lg:px-8">
+            <span className="text-[15px] font-semibold tracking-tight lg:hidden">CipherScope</span>
+            <div className="ml-auto flex items-center gap-4">
               <UtcClock />
-              <span className="flex items-center gap-1.5 rounded border border-[#1a2740] px-2 py-1 text-[11px]">
-                <Activity className={`h-3.5 w-3.5 ${online ? "text-emerald-400" : "text-amber-400"}`} />
-                <span className={online ? "text-emerald-300" : "text-amber-300"}>
-                  API {online ? "ONLINE" : "DEMO"}
-                </span>
+              <span
+                className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset sm:flex ${
+                  online
+                    ? "bg-emerald-500/10 text-emerald-300 ring-emerald-500/20"
+                    : "bg-white/[0.05] text-zinc-400 ring-white/10"
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-emerald-400" : "bg-zinc-500"}`} />
+                {online ? "API connected" : "API offline"}
               </span>
-            </nav>
+            </div>
           </div>
-          {/* mobile nav */}
-          <div className="flex gap-2 overflow-x-auto px-4 pb-2 lg:hidden">
+          <div className="flex gap-1 overflow-x-auto px-4 pb-2.5 lg:hidden">
             {[{ href: "/", label: "Overview" }, { href: "/analyses/new", label: "New" }, { href: "/lab", label: "Lab" }, { href: "/live", label: "Live" }].map((n) => (
-              <Link key={n.href} href={n.href} className="rounded border border-slate-700 px-3 py-1 text-xs text-slate-300">
+              <Link key={n.href} href={n.href} className="rounded-lg px-3 py-1.5 text-[13px] text-zinc-400 hover:bg-white/5 hover:text-zinc-200">
                 {n.label}
               </Link>
             ))}
           </div>
         </header>
 
-        <main className="soc-grid-bg min-w-0 flex-1 px-4 py-5 lg:px-6">{children}</main>
+        <main className="min-w-0 flex-1 px-4 py-6 lg:px-8">{children}</main>
 
-        <footer className="border-t border-[#16223a] px-6 py-2.5">
-          <p className="soc-num text-[10px] uppercase tracking-[0.2em] text-slate-600">
-            cipherscope soc · observed / inferred / unknown — never render unknowns as facts · rfc 8221 · rfc 8247 · nist 800-77r1 · cnsa 2.0
+        <footer className="border-t border-white/[0.06] px-8 py-3">
+          <p className="text-[11px] text-zinc-600">
+            Observed / inferred / unknown — unknowns are never rendered as facts.
           </p>
         </footer>
       </div>
