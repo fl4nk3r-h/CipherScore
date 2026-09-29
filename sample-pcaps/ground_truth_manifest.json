@@ -1,0 +1,770 @@
+{
+ "generated_by": "gen_ipsec_pcaps.py",
+ "note": "Synthetic data: ESP ciphertext is random; IKE structure is valid. Mode/cipher/traffic type must be inferred from sizes, IV/ICV/padding, timing, and IKE cleartext.",
+ "captures": [
+  {
+   "file": "ipsec_01_tunnel_ikev2_aes128cbc_sha256_modp2048_pfs_ipv4_voip.pcap",
+   "size_mb": 26.4,
+   "packets": 88753,
+   "packet_kinds": {
+    "ike": 26,
+    "esp": 88727
+   },
+   "sha256": "d4ffc51c9ff04c809bd5344528b9c1a9c94c013d67e1877d0a644226bd02b812",
+   "ground_truth": {
+    "ipsec": true,
+    "protocol": "ESP",
+    "ike_version": "IKEv2",
+    "ikev1_mode": null,
+    "ipsec_mode": "tunnel",
+    "ip_version": 4,
+    "nat_t": false,
+    "ike_sa": {
+     "encr": "aes-cbc",
+     "bits": 128,
+     "integ": "sha256",
+     "prf": "sha256",
+     "dh": "modp2048",
+     "dh_group": 14
+    },
+    "esp_encryption": {
+     "alg": "aes-cbc",
+     "key_bits": 128
+    },
+    "esp_integrity": "sha256",
+    "pfs": "modp2048",
+    "auth_method": "psk",
+    "ike_sa_lifetime_s": "n/a (IKEv2 not negotiated in clear)",
+    "traffic_types": [
+     "voip"
+    ],
+    "spi_map": [
+     {
+      "spi": "0x379027dd",
+      "traffic": "voip",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0xf609df8c",
+      "traffic": "voip",
+      "direction": "B->A",
+      "epoch": 0
+     }
+    ],
+    "rekey_events": 0,
+    "observed_duration_s": 355.7
+   },
+   "expected_assessment": "Good: AES-128-CBC+HMAC-SHA256, DH14, PFS on. Note: 2048-bit MODP acceptable, ECP preferable."
+  },
+  {
+   "file": "ipsec_02_tunnel_ikev2_aes256gcm_ecp256_pfs_ipv4_web_cert.pcap",
+   "size_mb": 61.0,
+   "packets": 62844,
+   "packet_kinds": {
+    "ike": 48,
+    "esp": 62796
+   },
+   "sha256": "8b4fe77747184655f7e207ac79aa2e7ea7a6a9378c493001c4308bdc8a48b4ba",
+   "ground_truth": {
+    "ipsec": true,
+    "protocol": "ESP",
+    "ike_version": "IKEv2",
+    "ikev1_mode": null,
+    "ipsec_mode": "tunnel",
+    "ip_version": 4,
+    "nat_t": false,
+    "ike_sa": {
+     "encr": "aes-gcm",
+     "bits": 256,
+     "integ": "sha256",
+     "prf": "sha256",
+     "dh": "ecp256",
+     "dh_group": 19
+    },
+    "esp_encryption": {
+     "alg": "aes-gcm",
+     "key_bits": 256
+    },
+    "esp_integrity": "aead",
+    "pfs": "ecp256",
+    "auth_method": "cert",
+    "ike_sa_lifetime_s": "n/a (IKEv2 not negotiated in clear)",
+    "traffic_types": [
+     "web"
+    ],
+    "spi_map": [
+     {
+      "spi": "0xe840cd96",
+      "traffic": "web",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0x8319c6ca",
+      "traffic": "web",
+      "direction": "B->A",
+      "epoch": 0
+     }
+    ],
+    "rekey_events": 0,
+    "observed_duration_s": 661.1
+   },
+   "expected_assessment": "Strong: AES-256-GCM, ECP-256, PFS, cert auth."
+  },
+  {
+   "file": "ipsec_03_transport_ikev2_aes256gcm_modp2048_nopfs_ipv4_email.pcap",
+   "size_mb": 25.4,
+   "packets": 26444,
+   "packet_kinds": {
+    "ike": 14,
+    "esp": 26430
+   },
+   "sha256": "6ad3d7b995385ec979e6e2328968818bd99aaa357712ae833e44dac8f7496a57",
+   "ground_truth": {
+    "ipsec": true,
+    "protocol": "ESP",
+    "ike_version": "IKEv2",
+    "ikev1_mode": null,
+    "ipsec_mode": "transport",
+    "ip_version": 4,
+    "nat_t": false,
+    "ike_sa": {
+     "encr": "aes-gcm",
+     "bits": 256,
+     "integ": "sha256",
+     "prf": "sha256",
+     "dh": "modp2048",
+     "dh_group": 14
+    },
+    "esp_encryption": {
+     "alg": "aes-gcm",
+     "key_bits": 256
+    },
+    "esp_integrity": "aead",
+    "pfs": "disabled",
+    "auth_method": "psk",
+    "ike_sa_lifetime_s": "n/a (IKEv2 not negotiated in clear)",
+    "traffic_types": [
+     "email"
+    ],
+    "spi_map": [
+     {
+      "spi": "0x93fd9291",
+      "traffic": "email",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0x59c421a7",
+      "traffic": "email",
+      "direction": "B->A",
+      "epoch": 0
+     }
+    ],
+    "rekey_events": 0,
+    "observed_duration_s": 166.6
+   },
+   "expected_assessment": "Transport mode host-to-host; PFS disabled -> forward secrecy finding."
+  },
+  {
+   "file": "ipsec_04_tunnel_ikev2_aes128gcm_curve25519_pfs_ipv6_video.pcap",
+   "size_mb": 111.7,
+   "packets": 105082,
+   "packet_kinds": {
+    "ike": 18,
+    "esp": 105064
+   },
+   "sha256": "f7f9c2c484329b4b071ad934fda2bf54ed055c9cbd7056e77eace7109d6def4e",
+   "ground_truth": {
+    "ipsec": true,
+    "protocol": "ESP",
+    "ike_version": "IKEv2",
+    "ikev1_mode": null,
+    "ipsec_mode": "tunnel",
+    "ip_version": 6,
+    "nat_t": false,
+    "ike_sa": {
+     "encr": "aes-gcm",
+     "bits": 128,
+     "integ": "sha256",
+     "prf": "sha256",
+     "dh": "curve25519",
+     "dh_group": 31
+    },
+    "esp_encryption": {
+     "alg": "aes-gcm",
+     "key_bits": 128
+    },
+    "esp_integrity": "aead",
+    "pfs": "curve25519",
+    "auth_method": "psk",
+    "ike_sa_lifetime_s": "n/a (IKEv2 not negotiated in clear)",
+    "traffic_types": [
+     "video"
+    ],
+    "spi_map": [
+     {
+      "spi": "0x32d76d4b",
+      "traffic": "video",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0x27d3612d",
+      "traffic": "video",
+      "direction": "B->A",
+      "epoch": 0
+     }
+    ],
+    "rekey_events": 0,
+    "observed_duration_s": 215.1
+   },
+   "expected_assessment": "Strong modern suite over IPv6; streaming-video traffic."
+  },
+  {
+   "file": "ipsec_05_transport_ikev1_main_aes128cbc_sha1_modp1024_nopfs_ipv4_icmp.pcap",
+   "size_mb": 8.3,
+   "packets": 15355,
+   "packet_kinds": {
+    "ike": 35,
+    "esp": 15320
+   },
+   "sha256": "4e3cc22108b5ac4680d63a8605049fb10658018992af6d9e013b0081a0a68bcd",
+   "ground_truth": {
+    "ipsec": true,
+    "protocol": "ESP",
+    "ike_version": "IKEv1",
+    "ikev1_mode": "main",
+    "ipsec_mode": "transport",
+    "ip_version": 4,
+    "nat_t": false,
+    "ike_sa": {
+     "encr": "aes-cbc",
+     "bits": 128,
+     "integ": "sha1",
+     "prf": "sha1",
+     "dh": "modp1024",
+     "dh_group": 2
+    },
+    "esp_encryption": {
+     "alg": "aes-cbc",
+     "key_bits": 128
+    },
+    "esp_integrity": "sha1",
+    "pfs": "disabled",
+    "auth_method": "psk",
+    "ike_sa_lifetime_s": 28800,
+    "traffic_types": [
+     "icmp"
+    ],
+    "spi_map": [
+     {
+      "spi": "0xed9161ac",
+      "traffic": "icmp",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0x0c37d46e",
+      "traffic": "icmp",
+      "direction": "B->A",
+      "epoch": 0
+     }
+    ],
+    "rekey_events": 0,
+    "observed_duration_s": 415.8
+   },
+   "expected_assessment": "IKEv1 main mode, DH group 2 (1024-bit) weak, SHA1, no PFS -> medium/high risk."
+  },
+  {
+   "file": "ipsec_06_tunnel_ikev2_aes256cbc_sha384_ecp384_pfs_ipv6_whatsapp.pcap",
+   "size_mb": 35.6,
+   "packets": 35497,
+   "packet_kinds": {
+    "ike": 176,
+    "esp": 35321
+   },
+   "sha256": "073ff81a6ef13e6cf87e97d113805bc6d65abfa1af2d0e332b82ca19557d0fe2",
+   "ground_truth": {
+    "ipsec": true,
+    "protocol": "ESP",
+    "ike_version": "IKEv2",
+    "ikev1_mode": null,
+    "ipsec_mode": "tunnel",
+    "ip_version": 6,
+    "nat_t": false,
+    "ike_sa": {
+     "encr": "aes-cbc",
+     "bits": 256,
+     "integ": "sha384",
+     "prf": "sha384",
+     "dh": "ecp384",
+     "dh_group": 20
+    },
+    "esp_encryption": {
+     "alg": "aes-cbc",
+     "key_bits": 256
+    },
+    "esp_integrity": "sha384",
+    "pfs": "ecp384",
+    "auth_method": "psk",
+    "ike_sa_lifetime_s": "n/a (IKEv2 not negotiated in clear)",
+    "traffic_types": [
+     "whatsapp"
+    ],
+    "spi_map": [
+     {
+      "spi": "0x3ca867ae",
+      "traffic": "whatsapp",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0x191832af",
+      "traffic": "whatsapp",
+      "direction": "B->A",
+      "epoch": 0
+     }
+    ],
+    "rekey_events": 0,
+    "observed_duration_s": 2600.2
+   },
+   "expected_assessment": "Strong (Suite-B-like). Messaging-app traffic pattern."
+  },
+  {
+   "file": "ipsec_07_tunnel_ikev2_natt_aes256cbc_sha256_modp3072_pfs_ipv4_web.pcap",
+   "size_mb": 40.7,
+   "packets": 40979,
+   "packet_kinds": {
+    "ike": 28,
+    "keepalive": 20,
+    "esp": 40931
+   },
+   "sha256": "420abafaac20031b8d2d638b64335be590ae4ef30a1476ce767bfe2b6414b30a",
+   "ground_truth": {
+    "ipsec": true,
+    "protocol": "ESP",
+    "ike_version": "IKEv2",
+    "ikev1_mode": null,
+    "ipsec_mode": "tunnel",
+    "ip_version": 4,
+    "nat_t": true,
+    "ike_sa": {
+     "encr": "aes-cbc",
+     "bits": 256,
+     "integ": "sha256",
+     "prf": "sha256",
+     "dh": "modp3072",
+     "dh_group": 15
+    },
+    "esp_encryption": {
+     "alg": "aes-cbc",
+     "key_bits": 256
+    },
+    "esp_integrity": "sha256",
+    "pfs": "modp3072",
+    "auth_method": "psk",
+    "ike_sa_lifetime_s": "n/a (IKEv2 not negotiated in clear)",
+    "traffic_types": [
+     "web"
+    ],
+    "spi_map": [
+     {
+      "spi": "0x6369788c",
+      "traffic": "web",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0x8eb6a867",
+      "traffic": "web",
+      "direction": "B->A",
+      "epoch": 0
+     }
+    ],
+    "rekey_events": 0,
+    "observed_duration_s": 388.4
+   },
+   "expected_assessment": "ESP-in-UDP/4500 NAT-T, keepalives, IKE moves 500->4500 with non-ESP marker."
+  },
+  {
+   "file": "ipsec_08_tunnel_ikev1_aggressive_3des_md5_modp768_nopfs_ipv4_web_weak.pcap",
+   "size_mb": 20.4,
+   "packets": 21031,
+   "packet_kinds": {
+    "ike": 24,
+    "esp": 21007
+   },
+   "sha256": "5d5a41cf400336e87676f7e67f833cf8a2830745f3a3e29306ae3277b56cf13d",
+   "ground_truth": {
+    "ipsec": true,
+    "protocol": "ESP",
+    "ike_version": "IKEv1",
+    "ikev1_mode": "aggr",
+    "ipsec_mode": "tunnel",
+    "ip_version": 4,
+    "nat_t": false,
+    "ike_sa": {
+     "encr": "3des",
+     "bits": null,
+     "integ": "md5",
+     "prf": "md5",
+     "dh": "modp768",
+     "dh_group": 1
+    },
+    "esp_encryption": {
+     "alg": "3des",
+     "key_bits": null
+    },
+    "esp_integrity": "md5",
+    "pfs": "disabled",
+    "auth_method": "psk",
+    "ike_sa_lifetime_s": 3600,
+    "traffic_types": [
+     "web"
+    ],
+    "spi_map": [
+     {
+      "spi": "0x202e5aea",
+      "traffic": "web",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0x5da8f16a",
+      "traffic": "web",
+      "direction": "B->A",
+      "epoch": 0
+     }
+    ],
+    "rekey_events": 0,
+    "observed_duration_s": 282.6
+   },
+   "expected_assessment": "CRITICAL: 3DES, MD5, 768-bit DH, aggressive mode PSK (offline crack), no PFS, short lifetimes, duplicate ESP seq (replay) injected ~0.3%."
+  },
+  {
+   "file": "ipsec_09_tunnel_ikev2_aes256gcm_ecp384_pfs_ipv4_mixed_multiSA_rekey.pcap",
+   "size_mb": 81.7,
+   "packets": 106528,
+   "packet_kinds": {
+    "ike": 180,
+    "esp": 106348
+   },
+   "sha256": "1fa4ddad4ddbb879045d3af96e7324765da2c838bc42172a8127ffde2ac03305",
+   "ground_truth": {
+    "ipsec": true,
+    "protocol": "ESP",
+    "ike_version": "IKEv2",
+    "ikev1_mode": null,
+    "ipsec_mode": "tunnel",
+    "ip_version": 4,
+    "nat_t": false,
+    "ike_sa": {
+     "encr": "aes-gcm",
+     "bits": 256,
+     "integ": "sha256",
+     "prf": "sha256",
+     "dh": "ecp384",
+     "dh_group": 20
+    },
+    "esp_encryption": {
+     "alg": "aes-gcm",
+     "key_bits": 256
+    },
+    "esp_integrity": "aead",
+    "pfs": "ecp384",
+    "auth_method": "psk",
+    "ike_sa_lifetime_s": "n/a (IKEv2 not negotiated in clear)",
+    "traffic_types": [
+     "voip",
+     "web",
+     "video",
+     "whatsapp",
+     "email",
+     "icmp"
+    ],
+    "spi_map": [
+     {
+      "spi": "0xacf2fb4a",
+      "traffic": "video",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0x0e9b1cfb",
+      "traffic": "video",
+      "direction": "B->A",
+      "epoch": 0
+     },
+     {
+      "spi": "0xf5a77fdd",
+      "traffic": "whatsapp",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0xbae560f6",
+      "traffic": "icmp",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0x81ba0b3f",
+      "traffic": "icmp",
+      "direction": "B->A",
+      "epoch": 0
+     },
+     {
+      "spi": "0x40589d19",
+      "traffic": "voip",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0x1e028f6d",
+      "traffic": "voip",
+      "direction": "B->A",
+      "epoch": 0
+     },
+     {
+      "spi": "0x56226579",
+      "traffic": "email",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0x28d76305",
+      "traffic": "email",
+      "direction": "B->A",
+      "epoch": 0
+     },
+     {
+      "spi": "0xa53b26bc",
+      "traffic": "whatsapp",
+      "direction": "B->A",
+      "epoch": 0
+     },
+     {
+      "spi": "0x5b2f6bee",
+      "traffic": "web",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0x85d83913",
+      "traffic": "web",
+      "direction": "B->A",
+      "epoch": 0
+     },
+     {
+      "spi": "0x2c877c49",
+      "traffic": "icmp",
+      "direction": "A->B",
+      "epoch": 1
+     },
+     {
+      "spi": "0x0cabf576",
+      "traffic": "icmp",
+      "direction": "B->A",
+      "epoch": 1
+     },
+     {
+      "spi": "0xed5c5c36",
+      "traffic": "whatsapp",
+      "direction": "A->B",
+      "epoch": 1
+     },
+     {
+      "spi": "0x2b3357e5",
+      "traffic": "whatsapp",
+      "direction": "B->A",
+      "epoch": 1
+     },
+     {
+      "spi": "0x7c258cc9",
+      "traffic": "whatsapp",
+      "direction": "A->B",
+      "epoch": 2
+     },
+     {
+      "spi": "0xfac8f86f",
+      "traffic": "whatsapp",
+      "direction": "B->A",
+      "epoch": 2
+     },
+     {
+      "spi": "0x2ea0a322",
+      "traffic": "whatsapp",
+      "direction": "B->A",
+      "epoch": 3
+     },
+     {
+      "spi": "0x4845db3f",
+      "traffic": "whatsapp",
+      "direction": "A->B",
+      "epoch": 3
+     }
+    ],
+    "rekey_events": 3,
+    "observed_duration_s": 1424.2
+   },
+   "expected_assessment": "6 child SAs (one per traffic class), 3 rekey rounds w/ new SPIs; use spi_map for traffic-type accuracy."
+  },
+  {
+   "file": "ipsec_10_ah_ikev2_tunnel_voip_transport_web_ipv4.pcap",
+   "size_mb": 15.6,
+   "packets": 38631,
+   "packet_kinds": {
+    "ike": 6,
+    "ah": 38625
+   },
+   "sha256": "423e4b55259b25572dd18f47b08b9e33d06f8fbe80606fa8ecbb5abbf4183e67",
+   "ground_truth": {
+    "ipsec": true,
+    "protocol": "AH",
+    "ike_version": "IKEv2",
+    "ikev1_mode": null,
+    "ipsec_mode": {
+     "voip": "tunnel",
+     "web": "transport"
+    },
+    "ip_version": 4,
+    "nat_t": false,
+    "ike_sa": {
+     "encr": "aes-cbc",
+     "bits": 256,
+     "integ": "sha256",
+     "prf": "sha256",
+     "dh": "modp2048",
+     "dh_group": 14
+    },
+    "esp_encryption": null,
+    "esp_integrity": "hmac-sha1-96 (AH)",
+    "pfs": "disabled",
+    "auth_method": "psk",
+    "ike_sa_lifetime_s": "n/a (IKEv2 not negotiated in clear)",
+    "traffic_types": [
+     "voip",
+     "web"
+    ],
+    "spi_map": [
+     {
+      "spi": "0x33e59e59",
+      "traffic": "web",
+      "direction": "A->B",
+      "mode": "transport"
+     },
+     {
+      "spi": "0x4cd3bec9",
+      "traffic": "web",
+      "direction": "B->A",
+      "mode": "transport"
+     },
+     {
+      "spi": "0x62e5d044",
+      "traffic": "voip",
+      "direction": "A->B",
+      "mode": "tunnel"
+     },
+     {
+      "spi": "0xe1abcbbb",
+      "traffic": "voip",
+      "direction": "B->A",
+      "mode": "tunnel"
+     }
+    ]
+   },
+   "expected_assessment": "AH (proto 51, HMAC-SHA1-96 ICV 12B): no confidentiality, payload/metadata fully exposed."
+  },
+  {
+   "file": "ipsec_11_non_ipsec_baseline_with_decoys.pcap",
+   "size_mb": 15.6,
+   "packets": 34239,
+   "packet_kinds": {
+    "decoy": 300,
+    "other": 33939
+   },
+   "sha256": "cb5abdf0236d7fd79b84a522b9b6a18c43d541575cd68b008d0faff698962974",
+   "ground_truth": {
+    "ipsec": false,
+    "protocol": null,
+    "ike_version": null,
+    "ikev1_mode": null,
+    "ipsec_mode": null,
+    "ip_version": 4,
+    "nat_t": false,
+    "ike_sa": null,
+    "esp_encryption": null,
+    "esp_integrity": null,
+    "pfs": null,
+    "auth_method": null,
+    "ike_sa_lifetime_s": "n/a (IKEv2 not negotiated in clear)",
+    "traffic_types": [
+     "voip",
+     "web",
+     "icmp",
+     "whatsapp"
+    ],
+    "spi_map": [],
+    "decoy_packets": 300
+   },
+   "expected_assessment": "NO IPsec. Negative control: plain UDP/ICMP + 300 random-payload decoys on UDP 500/4500. Should yield 0 IPsec detections."
+  },
+  {
+   "file": "ipsec_12_transport_ikev1_main_aes256cbc_sha256_modp2048_pfs_rsasig_ipv6_voip.pcap",
+   "size_mb": 21.1,
+   "packets": 70018,
+   "packet_kinds": {
+    "ike": 27,
+    "esp": 69991
+   },
+   "sha256": "171a4a04ec6112d0f5642a93cda327e5d773d602d44e54208c0c7ccfa9bfa6f7",
+   "ground_truth": {
+    "ipsec": true,
+    "protocol": "ESP",
+    "ike_version": "IKEv1",
+    "ikev1_mode": "main",
+    "ipsec_mode": "transport",
+    "ip_version": 6,
+    "nat_t": false,
+    "ike_sa": {
+     "encr": "aes-cbc",
+     "bits": 256,
+     "integ": "sha256",
+     "prf": "sha256",
+     "dh": "modp2048",
+     "dh_group": 14
+    },
+    "esp_encryption": {
+     "alg": "aes-cbc",
+     "key_bits": 256
+    },
+    "esp_integrity": "sha256",
+    "pfs": "modp2048",
+    "auth_method": "rsa",
+    "ike_sa_lifetime_s": 28800,
+    "traffic_types": [
+     "voip"
+    ],
+    "spi_map": [
+     {
+      "spi": "0xf4b4b269",
+      "traffic": "voip",
+      "direction": "A->B",
+      "epoch": 0
+     },
+     {
+      "spi": "0xc478b4d6",
+      "traffic": "voip",
+      "direction": "B->A",
+      "epoch": 0
+     }
+    ],
+    "rekey_events": 0,
+    "observed_duration_s": 275.5
+   },
+   "expected_assessment": "IKEv1 main mode RSA-sig over IPv6, transport mode, PFS on. Acceptable/legacy."
+  }
+ ]
+}
