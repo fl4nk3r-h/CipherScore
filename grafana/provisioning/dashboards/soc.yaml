@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: cipherscope-soc
+    folder: CipherScope
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

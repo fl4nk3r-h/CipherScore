@@ -1,0 +1,324 @@
+{
+  "uid": "cipherscope-soc",
+  "title": "CipherScope SOC \u2014 IPsec posture",
+  "tags": ["soc", "ipsec", "cipherscope"],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "analysis_id",
+        "type": "textbox",
+        "label": "Analysis ID",
+        "description": "Paste an analysis_id from the Next.js dashboard (New Analysis) to drill down, e.g. an_01J9Z3",
+        "query": "",
+        "current": { "selected": true, "text": "", "value": "" },
+        "options": [{ "selected": true, "text": "", "value": "" }]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "API status",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "cipherscope-api" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "http://api:8000/api/v1/healthz",
+          "url_options": { "method": "GET" },
+          "parser": "backend",
+          "root_selector": "",
+          "filterExpression": "",
+          "columns": [],
+          "computed_columns": []
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/.*/", "values": false },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 2,
+      "title": "API version",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "cipherscope-api" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "http://api:8000/api/v1/version",
+          "url_options": { "method": "GET" },
+          "parser": "backend",
+          "root_selector": "",
+          "filterExpression": "",
+          "columns": [],
+          "computed_columns": []
+        }
+      ],
+      "transformations": [{ "id": "filterFieldsByName", "options": { "include": { "names": ["api"] } } }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/.*/", "values": false },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 3,
+      "title": "Lab sessions indexed",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "cipherscope-api" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "http://api:8000/api/v1/lab/sessions",
+          "url_options": { "method": "GET" },
+          "parser": "backend",
+          "root_selector": "",
+          "filterExpression": "",
+          "uql": "parse-json | summarize count()",
+          "columns": [],
+          "computed_columns": []
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/.*/", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 4,
+      "title": "Sessions \u2014 bridge captures + ground truth",
+      "type": "table",
+      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 5 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "cipherscope-api" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "http://api:8000/api/v1/lab/sessions",
+          "url_options": { "method": "GET" },
+          "parser": "backend",
+          "root_selector": "",
+          "filterExpression": "",
+          "columns": [],
+          "computed_columns": []
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "includeByName": { "session_id": true, "profile": true, "traffic_type": true, "pcap": true },
+            "renameByName": {}
+          }
+        }
+      ],
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "session_id", "desc": false }] },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 5,
+      "title": "Sessions by traffic type",
+      "type": "piechart",
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 5 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "cipherscope-api" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "http://api:8000/api/v1/lab/sessions",
+          "url_options": { "method": "GET" },
+          "parser": "backend",
+          "root_selector": "",
+          "filterExpression": "",
+          "columns": [],
+          "computed_columns": []
+        }
+      ],
+      "transformations": [
+        {
+          "id": "groupBy",
+          "options": {
+            "fields": { "traffic_type": { "aggregations": ["count"], "operation": "groupby" } }
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/.*/", "values": false },
+        "pieType": "donut",
+        "tooltip": { "mode": "single", "sort": "none" },
+        "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true }
+      },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 6,
+      "title": "Profile matrix (16 base profiles)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "cipherscope-api" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "http://api:8000/api/v1/lab/profiles",
+          "url_options": { "method": "GET" },
+          "parser": "backend",
+          "root_selector": "",
+          "filterExpression": "",
+          "columns": [],
+          "computed_columns": []
+        }
+      ],
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "id", "desc": false }] },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 7,
+      "title": "Analysis drill-down \u2014 score / risk / confidence / SAs",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 22 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "cipherscope-api" },
+      "description": "Set $analysis_id above (from the Next.js dashboard after upload).",
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "http://api:8000/api/v1/analyses/${analysis_id}",
+          "url_options": { "method": "GET" },
+          "parser": "backend",
+          "root_selector": "",
+          "filterExpression": "",
+          "columns": [],
+          "computed_columns": []
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": { "include": { "names": ["security_score", "risk_score", "ai_confidence", "sa_count"] } }
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/.*/", "values": false },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 8,
+      "title": "Findings \u2014 $analysis_id",
+      "type": "table",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 27 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "cipherscope-api" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "http://api:8000/api/v1/analyses/${analysis_id}/findings",
+          "url_options": { "method": "GET" },
+          "parser": "backend",
+          "root_selector": "",
+          "filterExpression": "",
+          "columns": [],
+          "computed_columns": []
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "includeByName": {
+              "rule_id": true,
+              "severity": true,
+              "likelihood": true,
+              "confidence": true,
+              "fix": true
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "options": { "showHeader": true },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 9,
+      "title": "SAs \u2014 $analysis_id",
+      "type": "table",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 27 },
+      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "cipherscope-api" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "http://api:8000/api/v1/analyses/${analysis_id}/sas",
+          "url_options": { "method": "GET" },
+          "parser": "backend",
+          "root_selector": "",
+          "filterExpression": "",
+          "columns": [],
+          "computed_columns": []
+        }
+      ],
+      "options": { "showHeader": true },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    },
+    {
+      "id": 10,
+      "title": "SOC links",
+      "type": "text",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 36 },
+      "datasource": { "type": "datasource", "uid": "-- Grafana --" },
+      "targets": [{ "refId": "A", "datasource": { "type": "datasource", "uid": "-- Grafana --" } }],
+      "options": {
+        "mode": "markdown",
+        "content": "Analyst workbench: **Next.js SOC dashboard http://localhost:3000** (upload, SA evidence with Observed/Inferred/Unknown tags, threat matrix, PDF reports) \u00b7 API docs: http://localhost:8000/docs \u00b7 Live intercept: http://localhost:3000/live \u00b7 Lab matrix: http://localhost:3000/lab"
+      },
+      "fieldConfig": { "defaults": {}, "overrides": [] }
+    }
+  ]
+}

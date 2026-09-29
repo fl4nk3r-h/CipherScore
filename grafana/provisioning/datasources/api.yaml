@@ -1,0 +1,12 @@
+apiVersion: 1
+
+# Infinity datasource -> CipherScope FastAPI (existing REST only, mvp.md §5).
+# Lets Grafana query /healthz, /version, /lab/*, /analyses/* with no API changes.
+datasources:
+  - name: CipherScope API
+    uid: cipherscope-api
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    url: http://api:8000
+    isDefault: true
+    editable: true

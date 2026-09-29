@@ -2,20 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+:root {
+  color-scheme: dark;
 }
 
+html,
+body {
+  background: #09090b;
+  color: #f4f4f5;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---- Minimal panel system ---- */
+.soc-panel {
+  @apply rounded-xl border border-white/[0.07] bg-white/[0.02];
+}
+
+.soc-panel-header {
+  @apply flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3;
+}
+
+.soc-panel-title {
+  @apply text-[13px] font-semibold tracking-tight text-zinc-200;
+}
+
+.soc-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.soc-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.soc-scroll::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 4px;
+}
+.soc-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---- Legacy card/tag helpers (detail screens) ---- */
 .card {
-  @apply rounded-lg border border-slate-800 bg-slate-900 p-4;
+  @apply rounded-xl border border-white/[0.07] bg-white/[0.02] p-4;
 }
 
 .tag-observed {
-  @apply rounded bg-emerald-900/50 px-2 py-0.5 text-xs text-emerald-300;
+  @apply rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300;
 }
 .tag-inferred {
-  @apply rounded bg-amber-900/50 px-2 py-0.5 text-xs text-amber-300;
+  @apply rounded-md bg-amber-500/10 px-2 py-0.5 text-xs text-amber-300;
 }
 .tag-unknown {
-  @apply rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-400 italic;
+  @apply rounded-md bg-white/[0.06] px-2 py-0.5 text-xs text-zinc-400 italic;
 }

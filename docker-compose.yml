@@ -20,6 +20,20 @@ services:
     ports: ["3000:3000"]
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_GRAFANA_URL: http://localhost:${GRAFANA_PORT:-3001}
+    depends_on: [api]
+
+  grafana:
+    image: grafana/grafana:11.6.1
+    ports: ["${GRAFANA_PORT:-3001}:3000"]
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-cipherscope-soc}
+      GF_INSTALL_PLUGINS: yesoreyeram-infinity-datasource
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/soc-overview.json
     depends_on: [api]
 
   capture:
@@ -28,3 +42,6 @@ services:
     cap_add: [NET_RAW, NET_ADMIN]
     volumes:
       - ./data/sessions:/sessions
+
+volumes:
+  grafana-storage:
