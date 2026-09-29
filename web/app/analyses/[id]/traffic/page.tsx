@@ -7,27 +7,38 @@ import { api } from "@/lib/api";
 import { TrafficDonut } from "@/components/traffic-donut";
 import { HistogramChart } from "@/components/histogram-chart";
 import { ExposurePanel } from "@/components/exposure-panel";
-import type { SAEvidence } from "@/lib/types";
+import { CardSkeletons, ErrorState } from "@/components/states";
+import type { SAEvidence, TrafficWindow } from "@/lib/types";
 
 export default function Traffic({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { data } = useSWR<{ pred: string | null; p: number | null; t0: number }[]>(
+  const { data, error, mutate } = useSWR<TrafficWindow[]>(
     `/analyses/${id}/traffic`, api.fetcher);
-  const { data: sas } = useSWR<SAEvidence[]>(`/analyses/${id}/sas`, api.fetcher);
-  if (!data) return <p className="text-slate-500">loading…</p>;
+  const { data: sas, error: sasError } = useSWR<SAEvidence[]>(`/analyses/${id}/sas`, api.fetcher);
+
+  if (error || sasError)
+    return <ErrorState message="Could not load traffic data." onRetry={mutate} />;
+  if (!data) return <CardSkeletons rows={2} />;
+
+  const windows = data.filter((w): w is TrafficWindow => w != null);
+  const featureValues = windows.flatMap((w) =>
+    Object.values(w.features ?? {}).filter(
+      (v): v is number => typeof v === "number" && Number.isFinite(v)));
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="card">
           <h2 className="mb-2 font-semibold">Traffic types (in ESP)</h2>
-          <TrafficDonut windows={data} />
+          <TrafficDonut windows={windows} />
         </div>
         <div className="card">
-          <h2 className="mb-2 font-semibold">Packet-size histogram</h2>
+          <h2 className="mb-2 font-semibold">Window features histogram</h2>
+          <p className="mb-2 text-xs text-slate-500">
+            Combined distribution of per-window packet-size and IAT statistics
+          </p>
           <HistogramChart
-            values={(data ?? []).flatMap((w: any) =>
-              Object.values(w.features ?? {}).filter((v: any) => typeof v === "number")
-            )}
+            values={featureValues}
             bins={20}
           />
         </div>
