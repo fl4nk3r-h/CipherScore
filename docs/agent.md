@@ -16,6 +16,7 @@ Keep the specification set that every other folder's `agent.md` defers to, plus 
 | `repo.md` | The exact repository layout for this MVP; folder names match the full-platform monorepo so it can grow without restructuring. |
 | `api.md` | MVP subset of the API reference (mirrors `mvp.md` §5). To be written from §5 — no endpoint may appear here that is not in §5. |
 | `model_card.md` | Symlink/pointer to `../ml/reports/model_card.md` (§3.4 training loop output 5). |
+| `models.md` | Implementation notes for the `models/` M4 serving package (maps LLD §1.2/§6 and repo.md §6 to files; not a spec). |
 | `demo_video_script.md` | The demo narration built from `mvp.md` §10 (8-step sequence). |
 
 ## Boundaries (do not do)
