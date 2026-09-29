@@ -25,7 +25,9 @@ from .base import (
     resolve_version,
 )
 from .cipher import CipherModel, EncFamilyModel
+from .dh_group import DhGroupModel
 from .ensemble import HEADS, Ensemble
+from .integrity import IntegrityModel
 from .mode import ModeModel
 from .pfs import PfsModel
 from .traffic import TrafficClassModel, TrafficModel
@@ -34,12 +36,14 @@ __all__ = [
     "HEADS",
     "Attribute",
     "CipherModel",
+    "DhGroupModel",
     "EncFamilyModel",
     "Ensemble",
     "FeatureAttribution",
     "HeadModel",
     "InferenceRequest",
     "InferenceResponse",
+    "IntegrityModel",
     "ModeModel",
     "PfsModel",
     "Prediction",
