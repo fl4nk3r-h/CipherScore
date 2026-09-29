@@ -32,7 +32,7 @@ train:            ## Train and calibrate all models into models/
 eval:             ## Metrics + figures + update model_card.md
 	python ml/evaluate.py
 
-up:               ## Start api + web + capture
+up:               ## Start api + web + grafana + capture
 	docker compose -f docker-compose.yml up -d
 
 down:             ## Stop api + web + capture
@@ -52,3 +52,4 @@ demo:             ## Seed demo data and open the dashboard
 	python scripts/seed_demo_data.py
 	docker compose -f docker-compose.yml up -d
 	@echo "Dashboard: http://localhost:3000"
+	@echo "Grafana SOC: http://localhost:3001 (admin / see GF_SECURITY_ADMIN_PASSWORD)"
