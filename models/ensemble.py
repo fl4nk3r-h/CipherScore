@@ -16,14 +16,18 @@ from .base import (
     default_models_dir,
 )
 from .cipher import CipherModel
+from .dh_group import DhGroupModel
+from .integrity import IntegrityModel
 from .mode import ModeModel
 from .pfs import PfsModel
 from .traffic import TrafficModel
 
 HEADS: dict[str, type] = {
     "mode": ModeModel,
-    "pfs": PfsModel,
     "cipher": CipherModel,
+    "integ": IntegrityModel,
+    "pfs": PfsModel,
+    "dh_group": DhGroupModel,
     "traffic": TrafficModel,
 }
 
