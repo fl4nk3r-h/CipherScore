@@ -60,3 +60,61 @@ def test_unknown_capture_404(client):
 def test_live_disabled_by_default(client):
     res = client.post("/api/v1/live/start")
     assert res.status_code == 403   # CS_LIVE_ENABLED=false (mvp.md §13)
+
+
+def test_live_uses_configured_data_dir(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("CS_LIVE_ENABLED", "true")
+    from capture import live
+
+    seen: dict[str, object] = {}
+
+    class FakeCapturer:
+        def __init__(self, interface, data_dir):
+            seen["interface"] = interface
+            seen["data_dir"] = data_dir
+
+        def start(self):
+            seen["started"] = True
+
+        def stop(self):
+            seen["stopped"] = True
+
+    monkeypatch.setattr(live, "LiveCapturer", FakeCapturer)
+    res = client.post("/api/v1/live/start")
+
+    assert res.status_code == 200, res.text
+    assert seen == {"interface": "eth0", "data_dir": tmp_path, "started": True}
+    client.post("/api/v1/live/stop")
+
+
+def test_live_permission_error_is_service_unavailable(client, monkeypatch):
+    monkeypatch.setenv("CS_LIVE_ENABLED", "true")
+    from capture import live
+
+    class DeniedCapturer:
+        def __init__(self, interface, data_dir):
+            raise PermissionError("permission denied")
+
+    monkeypatch.setattr(live, "LiveCapturer", DeniedCapturer)
+    res = client.post("/api/v1/live/start")
+
+    assert res.status_code == 503
+    assert "NET_RAW/NET_ADMIN" in res.json()["detail"]
+
+
+def test_live_capture_error_is_service_unavailable(client, monkeypatch):
+    monkeypatch.setenv("CS_LIVE_ENABLED", "true")
+    from capture import live
+
+    class FailedCapturer:
+        def __init__(self, interface, data_dir):
+            pass
+
+        def start(self):
+            raise live.LiveCaptureError("tcpdump denied capture")
+
+    monkeypatch.setattr(live, "LiveCapturer", FailedCapturer)
+    res = client.post("/api/v1/live/start")
+
+    assert res.status_code == 503
+    assert "tcpdump" in res.json()["detail"]
