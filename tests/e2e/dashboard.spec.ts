@@ -3,7 +3,7 @@
 // PCAP in the dashboard produces score, SAs, findings, matrix, and both PDFs).
 import { test, expect } from "@playwright/test";
 
-test("new analysis accepts upload and navigates", async ({ page }) => {
+test("new analysis provides an upload workflow", async ({ page }) => {
   await page.goto("/analyses/new");
   await expect(page.getByRole("heading", { name: "New Analysis" })).toBeVisible();
   // The dropzone renders; a seeded demo capture can be analyzed from the Lab screen.

@@ -3,7 +3,11 @@
 import { useRef, useState } from "react";
 import { api } from "@/lib/api";
 
-export function UploadDropzone({ onUploaded }: { onUploaded: (captureId: string) => void }) {
+export function UploadDropzone({
+  onUploaded,
+}: {
+  onUploaded: (captureId: string) => void | Promise<void>;
+}) {
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +18,7 @@ export function UploadDropzone({ onUploaded }: { onUploaded: (captureId: string)
     setError(null);
     try {
       const res = await api.upload(file);   // 500 MB cap enforced server-side
-      onUploaded(res.capture_id);
+      await onUploaded(res.capture_id);
     } catch (e: any) {
       setError(e.message ?? "upload failed");
     } finally {

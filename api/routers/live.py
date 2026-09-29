@@ -25,9 +25,17 @@ _live_state = {"capturer": None, "q": queue.Queue()}
 def start_live() -> dict:
     if not settings.live_enabled:
         raise HTTPException(403, "live mode disabled (CS_LIVE_ENABLED=false)")
-    from capture.live import LiveCapturer
-    cap = LiveCapturer(settings.live_interface)
-    cap.start()
+    from capture.live import LiveCaptureError, LiveCapturer
+    try:
+        cap = LiveCapturer(settings.live_interface, data_dir=settings.data_dir)
+        cap.start()
+    except (LiveCaptureError, PermissionError) as exc:
+        raise HTTPException(
+            503,
+            "live capture requires dumpcap or tcpdump, write access to CS_DATA_DIR, and NET_RAW/NET_ADMIN privileges",
+        ) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(503, "live capture requires dumpcap or tcpdump to be installed") from exc
     _live_state["capturer"] = cap
     return {"status": "started", "window_s": 10, "interface": settings.live_interface}
 

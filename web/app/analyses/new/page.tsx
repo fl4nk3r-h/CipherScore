@@ -2,6 +2,7 @@
 // Screen 2 — New Analysis (mvp.md §4): drag-and-drop PCAP upload, pick a lab
 // session, or start live capture on an interface.
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { api } from "@/lib/api";
 import { UploadDropzone } from "@/components/upload-dropzone";
@@ -9,16 +10,27 @@ import { UploadDropzone } from "@/components/upload-dropzone";
 export default function NewAnalysis() {
   const { data: sessions } = useSWR<{ session_id: string; traffic_type: string; labels?: unknown[] }[]>(
     "/lab/sessions", api.fetcher);
-  const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+
+  function openAnalysis(analysisId: string) {
+    router.push(`/analyses/${analysisId}`);
+  }
 
   async function analyzeCapture(captureId: string) {
+    setError(null);
     const res = await api.post<{ analysis_id: string }>("/analyses", { capture_id: captureId });
-    setAnalysisId(res.analysis_id);
+    openAnalysis(res.analysis_id);
   }
 
   async function analyzeSession(sessionId: string) {
-    const res = await api.post<{ analysis_id: string }>("/analyses", { lab_session_id: sessionId });
-    setAnalysisId(res.analysis_id);
+    setError(null);
+    try {
+      const res = await api.post<{ analysis_id: string }>("/analyses", { lab_session_id: sessionId });
+      openAnalysis(res.analysis_id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "could not start analysis");
+    }
   }
 
   return (
@@ -43,11 +55,7 @@ export default function NewAnalysis() {
           ))}
         </ul>
       </div>
-      {analysisId && (
-        <p className="text-sm text-emerald-300">
-          Started analysis {analysisId} — watch progress on the analysis page.
-        </p>
-      )}
+      {error && <p className="text-sm text-red-400">Could not start analysis: {error}</p>}
     </div>
   );
 }
