@@ -70,6 +70,12 @@ def start_analysis(body: dict) -> dict:
     return {"analysis_id": analysis_id, "status": "queued"}
 
 
+@router.get("")
+def list_analyses(limit: int = 50) -> list[dict]:
+    """Recent analyses for the Overview screen (mvp.md §4 screen 1)."""
+    return analyses_repo.list_recent(max(1, min(limit, 200)))
+
+
 @router.get("/{analysis_id}")
 def get_analysis(analysis_id: str):
     summary = analyses_repo.summary(analysis_id)
