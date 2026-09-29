@@ -2,7 +2,7 @@
 "use client";
 import useSWR from "swr";
 import { api } from "@/lib/api";
-import type { Finding, SAEvidence, Summary } from "@/lib/types";
+import type { Finding, SAEvidence, Summary, TrafficWindow } from "@/lib/types";
 
 export function useAnalysis(id: string) {
   return useSWR<Summary>(`/analyses/${id}`, api.fetcher);
@@ -13,8 +13,7 @@ export function useAnalysisSAs(id: string) {
 }
 
 export function useAnalysisTraffic(id: string) {
-  return useSWR<{ pred: string | null; p: number | null; t0: number }[]>(
-    `/analyses/${id}/traffic`, api.fetcher);
+  return useSWR<TrafficWindow[]>(`/analyses/${id}/traffic`, api.fetcher);
 }
 
 export function useAnalysisFindings(id: string) {
