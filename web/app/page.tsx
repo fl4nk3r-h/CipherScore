@@ -1,6 +1,6 @@
 "use client";
 // Screen 1 — Overview (mvp.md §4): recent analyses, Security Score trend,
-// top findings across captures. Renders API data when present, otherwise
+// top findings across captures. Renders live API data when present, otherwise
 // labeled sample data so the dashboard works offline.
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -20,13 +20,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  FileUp,
-  Lock,
-  RefreshCw,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, FileUp, Lock, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { Kpi, SevBadge, SocPanel } from "@/components/soc-panels";
 import {
@@ -38,6 +32,7 @@ import {
   TRAFFIC_MIX,
   TUNNELS,
 } from "@/lib/soc-demo";
+import type { AnalysisListItem, TopFinding, Severity } from "@/lib/types";
 
 const SEV_DOT: Record<string, string> = {
   critical: "#f87171",
@@ -56,7 +51,67 @@ const SEV_FILL: Record<string, string> = {
 const TRAFFIC_COLORS = ["#38bdf8", "#a78bfa", "#34d399", "#fbbf24", "#fb923c", "#f87171", "#71717a"];
 const GRID = "rgba(255,255,255,0.06)";
 const TICK = { fill: "#71717a", fontSize: 11 };
-const TOOLTIP = { background: "#18181b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, color: "#e4e4e7" };
+const TOOLTIP = {
+  background: "#18181b",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderRadius: 8,
+  fontSize: 12,
+  color: "#e4e4e7",
+};
+
+const SEV_ORDER: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+const SEV_KEYS = ["critical", "high", "medium", "low", "info"] as const;
+
+type AggFinding = TopFinding & { analyses: number };
+
+type Row = {
+  id: string;
+  caption: string;
+  profile: string;
+  score: number;
+  grade: string;
+  risk: number;
+  confidence: number;
+  severity: { critical: number; high: number; medium: number; low: number; info?: number };
+};
+
+// Fallback list shown when there is no live data (same items as before the merge).
+const SAMPLE_TOP_FINDINGS = [
+  { id: "CRYPTO-001", sev: "high", title: "Weak DH group 2 in IKE + ESP", meta: "p03 · p13 · observed · RFC 8247 §2.4" },
+  { id: "IKE-001", sev: "critical", title: "IKEv1 Main Mode accepted (legacy)", meta: "p13 · observed · migrate to IKEv2" },
+  { id: "PFS-001", sev: "medium", title: "PFS disabled — rekey without KE payload", meta: "p03 · p13 · inferred 0.88" },
+  { id: "META-001", sev: "medium", title: "Application class leaks via ESP size and timing", meta: "VoIP 0.90 · video bursts" },
+  { id: "INTEG-002", sev: "high", title: "HMAC-SHA1-96 integrity truncation", meta: "p03 · p09 · inferred 0.98" },
+];
+
+function aggregateTopFindings(analyses: AnalysisListItem[]): AggFinding[] {
+  const byId = new Map<string, AggFinding>();
+  for (const a of analyses) {
+    for (const t of a.top_findings ?? []) {
+      const cur = byId.get(t.rule_id);
+      if (cur) {
+        cur.count += t.count;
+        cur.analyses += 1;
+      } else {
+        byId.set(t.rule_id, { ...t, analyses: 1 });
+      }
+    }
+  }
+  return [...byId.values()]
+    .sort(
+      (x, y) =>
+        SEV_ORDER[x.severity] - SEV_ORDER[y.severity] || y.count - x.count || y.analyses - x.analyses,
+    )
+    .slice(0, 6);
+}
+
+function severityCounts(tf: TopFinding[] | undefined) {
+  const s = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+  for (const t of tf ?? []) {
+    if (t.severity in s) s[t.severity as keyof typeof s] += t.count;
+  }
+  return s;
+}
 
 function scoreTone(s: number) {
   if (s >= 80) return "text-emerald-300";
@@ -73,28 +128,86 @@ export default function SocOverview() {
   const { data: health } = useSWR("/healthz", (p: string) => api.fetcher(p).catch(() => null), {
     revalidateOnFocus: false,
   });
-  const { data: sessions } = useSWR<any[] | null>("/lab/sessions", (p: string) => api.fetcher<any[]>(p).catch(() => null), {
-    revalidateOnFocus: false,
-  });
+  const { data: sessions } = useSWR<any[] | null>(
+    "/lab/sessions",
+    (p: string) => api.fetcher<any[]>(p).catch(() => null),
+    { revalidateOnFocus: false },
+  );
+  const {
+    data: analyses,
+    error: analysesError,
+    mutate: refetchAnalyses,
+  } = useSWR<AnalysisListItem[] | null>(
+    "/analyses",
+    (p: string) => api.fetcher<AnalysisListItem[]>(p).catch(() => null),
+    { revalidateOnFocus: false },
+  );
+
   const live = !!health;
+  const hasLiveAnalyses = !!analyses?.length;
   const sessionCount = sessions?.length;
 
+  // Rows: live analyses mapped into the shape the table expects, else demo data.
+  const rows: Row[] = useMemo(() => {
+    if (!analyses?.length) return DEMO_ANALYSES as Row[];
+    return [...analyses]
+      .sort((a, b) => b.created.localeCompare(a.created))
+      .map((a) => ({
+        id: a.analysis_id,
+        caption: a.analysis_id,
+        profile: `${a.status} · ${a.created.slice(0, 16)}`,
+        score: a.security_score ?? 0,
+        grade: a.grade ?? "—",
+        risk: a.risk_score ?? 0,
+        confidence: a.ai_confidence ?? 0,
+        severity: severityCounts(a.top_findings),
+      }));
+  }, [analyses]);
+
+  const topFindings = useMemo(
+    () => (analyses?.length ? aggregateTopFindings(analyses) : null),
+    [analyses],
+  );
+
+  // Score/risk trend: live = scored analyses oldest → newest; sample = range slice.
   const trend = useMemo(() => {
+    if (analyses?.length) {
+      return [...analyses]
+        .filter((a) => a.security_score != null)
+        .sort((a, b) => a.created.localeCompare(b.created))
+        .slice(-12)
+        .map((a) => ({
+          t: a.created.slice(5, 16).replace("T", " "),
+          score: a.security_score ?? 0,
+          risk: a.risk_score ?? 0,
+        }));
+    }
     const slice = range === "1H" ? 4 : range === "6H" ? 6 : range === "24H" ? 9 : SCORE_TREND.length;
     return SCORE_TREND.slice(-slice);
-  }, [range]);
+  }, [analyses, range]);
+
+  const severityTotals = useMemo(() => {
+    if (!analyses?.length) return SEVERITY_TOTALS;
+    const sum = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+    for (const r of rows) {
+      for (const k of SEV_KEYS) sum[k] += r.severity[k] ?? 0;
+    }
+    return SEV_KEYS.map((k) => ({ sev: k, count: sum[k] }));
+  }, [analyses, rows]);
 
   const totals = useMemo(() => {
-    const crit = DEMO_ANALYSES.reduce((a, x) => a + x.severity.critical, 0);
-    const high = DEMO_ANALYSES.reduce((a, x) => a + x.severity.high, 0);
-    const avgScore = Math.round(DEMO_ANALYSES.reduce((a, x) => a + x.score, 0) / DEMO_ANALYSES.length);
-    const avgRisk = (DEMO_ANALYSES.reduce((a, x) => a + x.risk, 0) / DEMO_ANALYSES.length).toFixed(1);
-    const avgConf = Math.round((DEMO_ANALYSES.reduce((a, x) => a + x.confidence, 0) / DEMO_ANALYSES.length) * 100);
+    const n = rows.length || 1;
+    const crit = rows.reduce((a, x) => a + x.severity.critical, 0);
+    const high = rows.reduce((a, x) => a + x.severity.high, 0);
+    const avgScore = Math.round(rows.reduce((a, x) => a + x.score, 0) / n);
+    const avgRisk = (rows.reduce((a, x) => a + x.risk, 0) / n).toFixed(1);
+    const avgConf = Math.round((rows.reduce((a, x) => a + x.confidence, 0) / n) * 100);
     return { crit, high, avgScore, avgRisk, avgConf };
-  }, []);
+  }, [rows]);
 
   function refresh() {
     setSpinning(true);
+    refetchAnalyses();
     setTimeout(() => setSpinning(false), 900);
   }
 
@@ -107,6 +220,7 @@ export default function SocOverview() {
           <p className="mt-1 text-[13px] text-zinc-500">
             IPsec VPN posture across recent analyses
             {!live && " · showing sample data — connect the API for live results"}
+            {live && !hasLiveAnalyses && " · no analyses yet — showing sample data"}
             {sessionCount != null && ` · ${sessionCount} lab sessions indexed`}
           </p>
         </div>
@@ -116,7 +230,9 @@ export default function SocOverview() {
               <button
                 key={r}
                 onClick={() => setRange(r)}
-                className={`soc-num rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                disabled={hasLiveAnalyses}
+                title={hasLiveAnalyses ? "Range applies to sample data only" : undefined}
+                className={`soc-num rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                   range === r ? "bg-white/10 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
@@ -147,14 +263,35 @@ export default function SocOverview() {
         </div>
       </div>
 
+      {analysesError && (
+        <div className="flex items-center justify-between rounded-lg border border-red-400/20 bg-red-400/[0.06] px-3 py-2 text-[13px] text-red-200">
+          <span>Could not load analyses: {String(analysesError.message ?? analysesError)}</span>
+          <button onClick={() => refetchAnalyses()} className="font-medium underline underline-offset-2">
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Kpi label="Avg. security score" value={<span className={scoreTone(totals.avgScore)}>{totals.avgScore}</span>} sub="Across 4 analyses" />
+        <Kpi
+          label="Avg. security score"
+          value={<span className={scoreTone(totals.avgScore)}>{totals.avgScore}</span>}
+          sub={`Across ${rows.length} analyses`}
+        />
         <Kpi label="Avg. risk" value={totals.avgRisk} sub="Confidence-weighted" />
-        <Kpi label="Critical + high" value={totals.crit + totals.high} sub={`${totals.crit} critical · ${totals.high} high`} />
-        <Kpi label="Tunnels / SAs" value="4 / 12" sub="2 transport-exposed · 1 NAT-T" />
+        <Kpi
+          label="Critical + high"
+          value={totals.crit + totals.high}
+          sub={`${totals.crit} critical · ${totals.high} high`}
+        />
+        <Kpi label="Tunnels / SAs" value="4 / 12" sub="Sample · 2 transport-exposed · 1 NAT-T" />
         <Kpi label="AI confidence" value={`${totals.avgConf}%`} sub="Calibrated + conformal" />
-        <Kpi label="Lab sessions" value={sessionCount ?? "112"} sub={live ? "Indexed from bridge" : "Sample snapshot"} />
+        <Kpi
+          label="Lab sessions"
+          value={sessionCount ?? "112"}
+          sub={live ? "Indexed from bridge" : "Sample snapshot"}
+        />
       </div>
 
       {/* Trend + severity + traffic */}
@@ -165,47 +302,98 @@ export default function SocOverview() {
           right={<span className="text-xs">Score 0–100 · risk weighted by confidence</span>}
         >
           <div className="h-60">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={trend} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
-                <CartesianGrid stroke={GRID} vertical={false} />
-                <XAxis dataKey="t" tick={TICK} axisLine={false} tickLine={false} />
-                <YAxis tick={TICK} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: "#a1a1aa" }} />
-                <Area type="monotone" dataKey="score" stroke="#e4e4e7" fill="#e4e4e7" fillOpacity={0.07} strokeWidth={1.75} name="Score" />
-                <Line type="monotone" dataKey="risk" stroke="#71717a" strokeDasharray="4 3" strokeWidth={1.5} dot={false} name="Risk" />
-              </ComposedChart>
-            </ResponsiveContainer>
+            {trend.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={trend} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+                  <CartesianGrid stroke={GRID} vertical={false} />
+                  <XAxis dataKey="t" tick={TICK} axisLine={false} tickLine={false} />
+                  <YAxis tick={TICK} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: "#a1a1aa" }} />
+                  <Area
+                    type="monotone"
+                    dataKey="score"
+                    stroke="#e4e4e7"
+                    fill="#e4e4e7"
+                    fillOpacity={0.07}
+                    strokeWidth={1.75}
+                    name="Score"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="risk"
+                    stroke="#71717a"
+                    strokeDasharray="4 3"
+                    strokeWidth={1.5}
+                    dot={false}
+                    name="Risk"
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-zinc-500">No scored analyses yet — run one under New analysis.</p>
+            )}
           </div>
           <div className="flex gap-4 px-1 pt-2 text-xs text-zinc-500">
-            <span><span className="text-zinc-200">—</span> Security score</span>
-            <span><span className="text-zinc-500">- -</span> Risk score</span>
+            <span>
+              <span className="text-zinc-200">—</span> Security score
+            </span>
+            <span>
+              <span className="text-zinc-500">- -</span> Risk score
+            </span>
           </div>
         </SocPanel>
 
         <SocPanel title="Findings by severity" className="xl:col-span-3">
           <div className="h-60">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={SEVERITY_TOTALS} layout="vertical" margin={{ top: 4, right: 12, bottom: 0, left: 0 }} barCategoryGap="28%">
+              <BarChart
+                data={severityTotals}
+                layout="vertical"
+                margin={{ top: 4, right: 12, bottom: 0, left: 0 }}
+                barCategoryGap="28%"
+              >
                 <CartesianGrid stroke={GRID} horizontal={false} />
                 <XAxis type="number" hide />
-                <YAxis dataKey="sev" type="category" tick={{ fill: "#a1a1aa", fontSize: 12, textTransform: "capitalize" } as any} axisLine={false} tickLine={false} width={64} />
+                <YAxis
+                  dataKey="sev"
+                  type="category"
+                  tick={{ fill: "#a1a1aa", fontSize: 12, textTransform: "capitalize" } as any}
+                  axisLine={false}
+                  tickLine={false}
+                  width={64}
+                />
                 <Tooltip contentStyle={TOOLTIP} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
                 <Bar dataKey="count" radius={[4, 4, 4, 4]}>
-                  {SEVERITY_TOTALS.map((s) => (
+                  {severityTotals.map((s) => (
                     <Cell key={s.sev} fill={SEV_FILL[s.sev]} fillOpacity={0.85} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <p className="text-xs text-zinc-500">Rule pack <span className="soc-num text-zinc-400">ipsec-baseline</span></p>
+          <p className="text-xs text-zinc-500">
+            Rule pack <span className="soc-num text-zinc-400">ipsec-baseline</span>
+          </p>
         </SocPanel>
 
-        <SocPanel title="Encrypted traffic mix" className="xl:col-span-3" right={<span className="text-xs">ML · 7 classes</span>}>
+        <SocPanel
+          title="Encrypted traffic mix"
+          className="xl:col-span-3"
+          right={<span className="text-xs">ML · 7 classes · sample</span>}
+        >
           <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={TRAFFIC_MIX} dataKey="value" nameKey="name" innerRadius={42} outerRadius={64} paddingAngle={3} strokeWidth={0} opacity={0.9}>
+                <Pie
+                  data={TRAFFIC_MIX}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={42}
+                  outerRadius={64}
+                  paddingAngle={3}
+                  strokeWidth={0}
+                  opacity={0.9}
+                >
                   {TRAFFIC_MIX.map((_, i) => (
                     <Cell key={i} fill={TRAFFIC_COLORS[i % TRAFFIC_COLORS.length]} />
                   ))}
@@ -217,7 +405,10 @@ export default function SocOverview() {
           <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
             {TRAFFIC_MIX.slice(0, 6).map((t, i) => (
               <div key={t.name} className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: TRAFFIC_COLORS[i % TRAFFIC_COLORS.length] }} />
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ background: TRAFFIC_COLORS[i % TRAFFIC_COLORS.length] }}
+                />
                 <span className="capitalize text-zinc-400">{t.name}</span>
                 <span className="soc-num ml-auto text-zinc-300">{t.value}%</span>
               </div>
@@ -237,7 +428,10 @@ export default function SocOverview() {
           className="xl:col-span-7"
           pad={false}
           right={
-            <Link href="/analyses/new" className="flex items-center gap-1 text-xs font-medium text-zinc-300 hover:text-zinc-100">
+            <Link
+              href="/analyses/new"
+              className="flex items-center gap-1 text-xs font-medium text-zinc-300 hover:text-zinc-100"
+            >
               Open intake <ArrowRight className="h-3 w-3" />
             </Link>
           }
@@ -255,11 +449,16 @@ export default function SocOverview() {
                 </tr>
               </thead>
               <tbody>
-                {DEMO_ANALYSES.map((a) => (
-                  <tr key={a.id} className="border-b border-white/[0.04] last:border-0 transition-colors hover:bg-white/[0.02]">
+                {rows.map((a) => (
+                  <tr
+                    key={a.id}
+                    className="border-b border-white/[0.04] last:border-0 transition-colors hover:bg-white/[0.02]"
+                  >
                     <td className="px-4 py-3">
                       <div className="font-medium text-zinc-100">{a.caption}</div>
-                      <div className="soc-num mt-0.5 max-w-[360px] truncate text-[11px] text-zinc-500">{a.profile}</div>
+                      <div className="soc-num mt-0.5 max-w-[360px] truncate text-[11px] text-zinc-500">
+                        {a.profile}
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-3">
                       <span className={`soc-num text-[15px] font-semibold ${scoreTone(a.score)}`}>{a.score}</span>{" "}
@@ -276,7 +475,10 @@ export default function SocOverview() {
                     </td>
                     <td className="soc-num px-3 py-3 text-zinc-300">{Math.round(a.confidence * 100)}%</td>
                     <td className="px-4 py-3 text-right">
-                      <Link href={`/analyses/${a.id}`} className="rounded-md px-2 py-1 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100">
+                      <Link
+                        href={`/analyses/${a.id}`}
+                        className="rounded-md px-2 py-1 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-100"
+                      >
                         Open
                       </Link>
                     </td>
@@ -287,27 +489,49 @@ export default function SocOverview() {
           </div>
         </SocPanel>
 
-        <SocPanel title="Top findings" className="xl:col-span-5" right={<span className="text-xs">ipsec-baseline</span>}>
-          <ul className="space-y-2">
-            {[
-              { id: "CRYPTO-001", sev: "high", title: "Weak DH group 2 in IKE + ESP", meta: "p03 · p13 · observed · RFC 8247 §2.4" },
-              { id: "IKE-001", sev: "critical", title: "IKEv1 Main Mode accepted (legacy)", meta: "p13 · observed · migrate to IKEv2" },
-              { id: "PFS-001", sev: "medium", title: "PFS disabled — rekey without KE payload", meta: "p03 · p13 · inferred 0.88" },
-              { id: "META-001", sev: "medium", title: "Application class leaks via ESP size and timing", meta: "VoIP 0.90 · video bursts" },
-              { id: "INTEG-002", sev: "high", title: "HMAC-SHA1-96 integrity truncation", meta: "p03 · p09 · inferred 0.98" },
-            ].map((f) => (
-              <li key={f.id} className="flex items-start gap-2.5 rounded-lg border border-white/[0.05] bg-white/[0.015] px-3 py-2.5">
-                <SevBadge sev={f.sev} />
-                <div className="min-w-0">
-                  <div className="truncate text-[13px] font-medium text-zinc-200">
-                    <span className="soc-num font-normal text-zinc-500">{f.id}</span> · {f.title}
-                  </div>
-                  <div className="mt-0.5 truncate text-xs text-zinc-500">{f.meta}</div>
-                </div>
-              </li>
-            ))}
+        <SocPanel
+          title="Top findings"
+          className="xl:col-span-5"
+          right={<span className="text-xs">{topFindings ? "across captures" : "ipsec-baseline · sample"}</span>}
+        >
+          <ul className="space-y-2" data-testid="top-findings">
+            {topFindings
+              ? topFindings.map((t) => (
+                  <li
+                    key={t.rule_id}
+                    className="flex items-start gap-2.5 rounded-lg border border-white/[0.05] bg-white/[0.015] px-3 py-2.5"
+                  >
+                    <SevBadge sev={t.severity} />
+                    <div className="min-w-0">
+                      <div className="truncate text-[13px] font-medium text-zinc-200">
+                        <span className="soc-num font-normal text-zinc-500">{t.rule_id}</span> · {t.title}
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-zinc-500">
+                        {t.count} finding{t.count === 1 ? "" : "s"} across {t.analyses} analysis
+                        {t.analyses === 1 ? "" : "es"}
+                      </div>
+                    </div>
+                  </li>
+                ))
+              : SAMPLE_TOP_FINDINGS.map((f) => (
+                  <li
+                    key={f.id}
+                    className="flex items-start gap-2.5 rounded-lg border border-white/[0.05] bg-white/[0.015] px-3 py-2.5"
+                  >
+                    <SevBadge sev={f.sev} />
+                    <div className="min-w-0">
+                      <div className="truncate text-[13px] font-medium text-zinc-200">
+                        <span className="soc-num font-normal text-zinc-500">{f.id}</span> · {f.title}
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-zinc-500">{f.meta}</div>
+                    </div>
+                  </li>
+                ))}
           </ul>
-          <Link href="/analyses/an_p03_weak/findings" className="mt-3 flex items-center justify-center rounded-lg border border-white/[0.07] py-2 text-[13px] font-medium text-zinc-300 transition-colors hover:bg-white/[0.04] hover:text-zinc-100">
+          <Link
+            href={hasLiveAnalyses ? `/analyses/${rows[0].id}/findings` : "/analyses/an_p03_weak/findings"}
+            className="mt-3 flex items-center justify-center rounded-lg border border-white/[0.07] py-2 text-[13px] font-medium text-zinc-300 transition-colors hover:bg-white/[0.04] hover:text-zinc-100"
+          >
             Open findings workbench
           </Link>
         </SocPanel>
@@ -315,14 +539,26 @@ export default function SocOverview() {
 
       {/* Tunnels + throughput + feed */}
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-12">
-        <SocPanel title="Tunnels" className="xl:col-span-5" pad={false} right={<span className="text-xs">SPI · suite</span>}>
+        <SocPanel
+          title="Tunnels"
+          className="xl:col-span-5"
+          pad={false}
+          right={<span className="text-xs">SPI · suite · sample</span>}
+        >
           <ul className="divide-y divide-white/[0.05]">
             {TUNNELS.map((t) => (
               <li key={t.sa} className="flex items-center gap-3 px-4 py-3">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: t.score >= 80 ? "#34d399" : t.score >= 60 ? "#fbbf24" : "#f87171" }} />
+                <span
+                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{ background: t.score >= 80 ? "#34d399" : t.score >= 60 ? "#fbbf24" : "#f87171" }}
+                />
                 <div className="min-w-0 flex-1">
-                  <div className="soc-num text-[13px] font-medium text-zinc-100">{t.sa} <span className="font-normal text-zinc-500">· {t.mode}</span></div>
-                  <div className="soc-num mt-0.5 truncate text-[11px] text-zinc-500">{t.peers} · {t.cipher} · {t.dh} · PFS {t.pfs ? "on" : "off"}</div>
+                  <div className="soc-num text-[13px] font-medium text-zinc-100">
+                    {t.sa} <span className="font-normal text-zinc-500">· {t.mode}</span>
+                  </div>
+                  <div className="soc-num mt-0.5 truncate text-[11px] text-zinc-500">
+                    {t.peers} · {t.cipher} · {t.dh} · PFS {t.pfs ? "on" : "off"}
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className={`soc-num text-[15px] font-semibold ${scoreTone(t.score)}`}>{t.score}</div>
@@ -332,14 +568,26 @@ export default function SocOverview() {
             ))}
           </ul>
           <div className="border-t border-white/[0.06] p-3">
-            <Link href="/lab" className="flex items-center justify-center rounded-lg bg-white/[0.05] py-2 text-[13px] font-medium text-zinc-200 transition-colors hover:bg-white/[0.08]">
+            <Link
+              href="/lab"
+              className="flex items-center justify-center rounded-lg bg-white/[0.05] py-2 text-[13px] font-medium text-zinc-200 transition-colors hover:bg-white/[0.08]"
+            >
               Compare against ground truth in the lab
             </Link>
           </div>
         </SocPanel>
 
-        <SocPanel title="Bridge throughput" className="xl:col-span-3"
-          right={live && <span className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Live</span>}>
+        <SocPanel
+          title="Bridge throughput"
+          className="xl:col-span-3"
+          right={
+            live ? (
+              <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Live API
+              </span>
+            ) : undefined
+          }
+        >
           <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={THROUGHPUT} margin={{ top: 8, right: 4, bottom: 0, left: -20 }}>
@@ -353,17 +601,30 @@ export default function SocOverview() {
             </ResponsiveContainer>
           </div>
           <div className="mt-1 flex items-center justify-between text-xs text-zinc-500">
-            <span>ESP packets/s · IKE messages</span>
-            <Link href="/live" className="font-medium text-zinc-300 hover:text-zinc-100">Live view →</Link>
+            <span>ESP packets/s · IKE messages · sample</span>
+            <Link href="/live" className="font-medium text-zinc-300 hover:text-zinc-100">
+              Live view →
+            </Link>
           </div>
         </SocPanel>
 
-        <SocPanel title="Activity" className="xl:col-span-4" pad={false} right={<span className="text-xs">posture · ml · parse</span>}>
+        <SocPanel
+          title="Activity"
+          className="xl:col-span-4"
+          pad={false}
+          right={<span className="text-xs">posture · ml · parse · sample</span>}
+        >
           <ul className="soc-scroll max-h-[290px] overflow-y-auto p-2">
             {THREAT_FEED.map((e, i) => (
-              <li key={i} className="flex items-start gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-white/[0.02]">
+              <li
+                key={i}
+                className="flex items-start gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-white/[0.02]"
+              >
                 <span className="soc-num mt-0.5 shrink-0 text-[11px] text-zinc-600">{e.ts}</span>
-                <span className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: SEV_DOT[e.sev] }} />
+                <span
+                  className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{ background: SEV_DOT[e.sev] }}
+                />
                 <p className="min-w-0 text-xs leading-relaxed text-zinc-400">{e.msg}</p>
               </li>
             ))}

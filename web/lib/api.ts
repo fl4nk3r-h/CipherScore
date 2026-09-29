@@ -22,6 +22,16 @@ export const api = {
     return res.json();
   },
 
+  /** True when the resource exists (HEAD) — used to detect un-generated reports. */
+  async headExists(path: string): Promise<boolean> {
+    try {
+      const res = await fetch(api.url(path), { method: "HEAD" });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
   async upload(file: File): Promise<{ capture_id: string }> {
     const form = new FormData();
     form.append("file", file);

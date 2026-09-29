@@ -5,47 +5,44 @@ import { use, useState } from "react";
 import useSWR from "swr";
 import { api } from "@/lib/api";
 import { FindingsList } from "@/components/findings-list";
+import { EvidenceDrawer } from "@/components/evidence-drawer";
+import { Tabs, TabsList, TabsTrigger, TabsPanel } from "@/components/ui/tabs";
+import { CardSkeletons, ErrorState } from "@/components/states";
+import { Badge } from "@/components/ui/badge";
 import type { Finding } from "@/lib/types";
 
-const SEVS = ["all", "critical", "high", "medium", "low", "info"];
+const SEVS = ["all", "critical", "high", "medium", "low", "info"] as const;
 
 export default function Findings({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { data } = useSWR<Finding[]>(`/analyses/${id}/findings`, api.fetcher);
-  const [sev, setSev] = useState("all");
-  const [selected, setSelected] = useState<any>(null);
-  if (!data) return <p className="text-slate-500">loading…</p>;
+  const { data, error, mutate } = useSWR<Finding[]>(`/analyses/${id}/findings`, api.fetcher);
+  const [sev, setSev] = useState<(typeof SEVS)[number]>("all");
+  const [selected, setSelected] = useState<Finding | null>(null);
+  if (error) return <ErrorState message={`Could not load findings: ${error.message}`} onRetry={mutate} />;
+  if (!data) return <CardSkeletons rows={5} />;
 
-  const filtered = sev === "all" ? data : data.filter((f: any) => f.severity === sev);
+  const filtered = sev === "all" ? data : data.filter((f) => f.severity === sev);
+
   return (
     <div className="space-y-3">
-      <div className="flex gap-2 text-xs">
-        {SEVS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setSev(s)}
-            className={`rounded px-3 py-1 ${
-              sev === s ? "bg-cyan-700" : "bg-slate-800 hover:bg-slate-700"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-      <FindingsList findings={filtered} onSelect={setSelected} />
-      {selected && (
-        <aside className="card fixed bottom-6 right-6 w-96">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">{selected.rule_id}</h3>
-            <button onClick={() => setSelected(null)} className="text-slate-400">×</button>
-          </div>
-          <pre className="mt-2 max-h-64 overflow-auto text-xs text-slate-300">
-            {JSON.stringify(selected.evidence, null, 2)}
-          </pre>
-          <p className="mt-2 text-xs text-slate-400">refs: {selected.refs?.join("; ")}</p>
-          <pre className="mt-2 rounded bg-slate-950 p-2 text-xs">{selected.fix}</pre>
-        </aside>
-      )}
+      <Tabs value={sev} onValueChange={(v) => setSev(v as (typeof SEVS)[number])}>
+        <div className="flex flex-wrap items-center gap-3">
+          <TabsList aria-label="Filter findings by severity">
+            {SEVS.map((s) => (
+              <TabsTrigger key={s} value={s}>
+                {s}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <Badge variant="secondary" aria-live="polite">
+            {filtered.length} of {data.length}
+          </Badge>
+        </div>
+        <TabsPanel className="mt-2">
+          <FindingsList findings={filtered} onSelect={setSelected} />
+        </TabsPanel>
+      </Tabs>
+      <EvidenceDrawer finding={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
