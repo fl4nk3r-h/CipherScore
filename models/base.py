@@ -116,7 +116,7 @@ class HeadModel:
     classes: ClassVar[list[Any]] = []
     source: Source = "inferred"
     alpha: float = 0.05
-    top_k_explanations: int = 5
+    top_k_explanations: int = 10
 
     def __init__(self, models_dir: str | Path | None = None,
                  version: str | None = None,
@@ -135,6 +135,8 @@ class HeadModel:
         if model is None:
             self._load(model_path)
         self._resolve_classes()
+        if self._feature_importances is None:
+            self._feature_importances = self._extract_importances()
 
     # -- artifact loading -------------------------------------------------
     def _artifact_dir(self, model_path: str | Path | None = None) -> Path | None:
@@ -173,12 +175,22 @@ class HeadModel:
             self._feature_order = [str(name) for name in json.loads(features_file.read_text())]
         self._feature_importances = self._extract_importances()
 
-    def _extract_importances(self) -> list[float] | None:
+    def _tree_estimator(self) -> Any:
+        """Return the fitted tree estimator behind a calibrated wrapper.
+
+        `ml/train.py` persists the `CalibratedClassifierCV` itself, so the
+        underlying LightGBM model lives in `calibrated_classifiers_[i].estimator`
+        (a template `.estimator` on the wrapper is unfitted and unusable for
+        SHAP / feature importances).
+        """
         model = self._model
-        importances = getattr(model, "feature_importances_", None)
-        if importances is None:
-            importances = getattr(getattr(model, "estimator", None),
-                                  "feature_importances_", None)
+        wrappers = getattr(model, "calibrated_classifiers_", None)
+        if wrappers:
+            return getattr(wrappers[0], "estimator", model)
+        return getattr(model, "estimator", None) or model
+
+    def _extract_importances(self) -> list[float] | None:
+        importances = getattr(self._tree_estimator(), "feature_importances_", None)
         if importances is None:
             return None
         try:
@@ -227,7 +239,7 @@ class HeadModel:
                 prediction_set=[str(self._label(i)) for i in set_idx],
                 alpha=self.alpha,
                 model_version=self.model_version,
-                explanation=self._explain(),
+                explanation=self._explain(features),
             )
         latency = (time.perf_counter() - start) * 1000.0
         return InferenceResponse(
@@ -255,10 +267,51 @@ class HeadModel:
             return str(value)
         return str(idx)
 
-    def _explain(self, k: int | None = None) -> list[FeatureAttribution]:
-        if not self._feature_importances or not self._feature_order:
+    def _explain(self, features: dict[str, float],
+                 k: int | None = None) -> list[FeatureAttribution]:
+        """Top-k attributions (LLD §6.4).
+
+        TreeSHAP is preferred for the GBDT heads; when ``shap`` is not installed
+        (or the estimator is not tree-explainable) we fall back to the model's
+        global ``feature_importances_`` so a prediction is never left
+        unexplained by accident. Both need ``features.json`` for feature names.
+        """
+        if not self._feature_order:
+            return []
+        k = k or self.top_k_explanations
+        local = self._shap_explanation(features)
+        if local is not None:
+            return local[:k]
+        if not self._feature_importances:
             return []
         pairs = sorted(zip(self._feature_order, self._feature_importances),
                        key=lambda pair: abs(pair[1]), reverse=True)
         return [FeatureAttribution(feature=name, importance=float(importance))
-                for name, importance in pairs[:k or self.top_k_explanations]]
+                for name, importance in pairs[:k]]
+
+    def _shap_explanation(self, features: dict[str, float]) -> list[FeatureAttribution] | None:
+        if self._model is None:
+            return None
+        try:
+            import numpy as np
+            import shap
+        except ImportError:
+            return None
+        try:
+            estimator = self._tree_estimator()
+            explainer = shap.TreeExplainer(estimator)
+            raw = explainer.shap_values([self._vector(features)])
+            if isinstance(raw, list):
+                stacked = np.stack([np.asarray(part, dtype=float) for part in raw], axis=-1)
+            else:
+                stacked = np.asarray(raw, dtype=float)
+            flat = np.abs(stacked).reshape(-1, len(self._feature_order)).mean(axis=0)
+        except Exception:  # noqa: BLE001 — shap/estimator edge cases -> fall back to importances
+            return None
+        values = flat.tolist()
+        if len(values) != len(self._feature_order):
+            return None
+        pairs = sorted(zip(self._feature_order, values),
+                       key=lambda pair: abs(pair[1]), reverse=True)
+        return [FeatureAttribution(feature=name, importance=float(importance))
+                for name, importance in pairs]
