@@ -1,4 +1,6 @@
 # CipherScope API container (repo.md §7, §11).
+# Build context is the repo ROOT (docker-compose.yml) so we can ship the lab
+# profile matrix alongside analyzer/ and api/.
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -11,6 +13,7 @@ COPY pyproject.toml ./
 COPY analyzer/ analyzer/
 COPY api/ api/
 COPY rules/ /rules/
+COPY lab/profiles/ lab/profiles/
 
 RUN pip install --no-cache-dir -e ".[dev]" || pip install --no-cache-dir -e .
 

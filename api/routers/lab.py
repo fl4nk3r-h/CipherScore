@@ -7,15 +7,17 @@
 from __future__ import annotations
 
 import json
-import pathlib
 import uuid
 
 import yaml
 from fastapi import APIRouter, HTTPException
 
+from analyzer import config
+
 router = APIRouter(prefix="/lab", tags=["lab"])
 
-PROFILES_DIR = pathlib.Path("lab/profiles")
+# Env-overridable so the API container sees the shipped profiles (api/Dockerfile).
+PROFILES_DIR = config.LAB_PROFILES_DIR
 
 
 @router.get("/profiles")
@@ -43,7 +45,7 @@ def start_run(body: dict) -> dict:
 
 @router.get("/sessions")
 def list_sessions() -> list[dict]:
-    sessions_root = pathlib.Path("data/sessions")
+    sessions_root = config.SESSIONS_DIR
     out = []
     for manifest_path in sorted(sessions_root.glob("*/manifest.json")):
         m = json.loads(manifest_path.read_text())

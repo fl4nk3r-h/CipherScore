@@ -8,6 +8,7 @@ Usage: web.py <base_url> <duration_seconds>
 """
 from __future__ import annotations
 
+import os
 import sys
 import time
 import urllib.request
@@ -25,7 +26,13 @@ PAGES = [
 def main(base_url: str, duration: int) -> None:
     end = time.monotonic() + duration
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        # Debian images ship /usr/bin/chromium; Playwright otherwise insists on
+        # its own downloaded bundle (PLAYWRIGHT_CHROMIUM_EXECUTABLE is not a
+        # recognized env var).
+        chromium = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE") \
+            or None
+        browser = p.chromium.launch(headless=True,
+                                    executable_path=chromium)
         page = browser.new_page()
         i = 0
         while time.monotonic() < end:

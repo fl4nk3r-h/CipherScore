@@ -38,7 +38,7 @@ export function EvidenceDrawer({
       <pre className="mt-2 max-h-56 overflow-auto rounded bg-slate-950 p-2 text-[11px] text-slate-300">
         {JSON.stringify(finding.evidence, null, 2)}
       </pre>
-      {finding.refs.length > 0 && (
+      {(finding.refs?.length ?? 0) > 0 && (
         <p className="mt-2 text-[11px] text-slate-400">refs: {finding.refs.join("; ")}</p>
       )}
       <pre className="mt-2 rounded bg-slate-950 p-2 text-xs text-emerald-200/80">{finding.fix}</pre>
