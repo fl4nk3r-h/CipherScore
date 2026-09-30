@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -32,9 +33,12 @@ def _session_dir(session_id: str) -> Path:
 def start(session_id: str, interface: str = "eth0") -> int:
     out = _session_dir(session_id)
     stamp = int(time.time())
-    # -C 100: rotate every 100 MB; -w session_%s: timestamped files (mvp.md §3.2).
-    cmd = ["tcpdump", "-i", interface, "-C", "100", "-w",
-           str(out / "session_%s.pcapng")]
+    # Stamp-based names: some tcpdump builds do not expand %s in -w; rotations
+    # (-C 100) append 1,2,3… which the stop glob below still picks up.
+    # -Z root: tcpdump's default privilege drop cannot create files in the
+    # root-owned bind-mounted /sessions (writes nothing, exits silently).
+    cmd = ["tcpdump", "-i", interface, "-C", "100", "-Z", "root", "-w",
+           str(out / f"session_{stamp}.pcapng")]
     proc = subprocess.Popen(cmd)
     (out / "tcpdump.pid").write_text(str(proc.pid))
     (out / "started_at").write_text(str(stamp))
@@ -42,35 +46,63 @@ def start(session_id: str, interface: str = "eth0") -> int:
     return 0
 
 
+def _tcpdump_alive(pid: int) -> bool:
+    """True if pid exists AND is still tcpdump (guards against pid reuse:
+    signaling a recycled pid once killed our own exec'd python -> exit 137)."""
+    try:
+        return "tcpdump" in Path(f"/proc/{pid}/comm").read_text()
+    except OSError:
+        return False
+
+
 def stop(session_id: str) -> int:
     out = _session_dir(session_id)
     pid_file = out / "tcpdump.pid"
     if not pid_file.exists():
+        # Idempotent: a double-stop (e.g. two runners racing on one session)
+        # must not fail the sweep.
         print(f"[capture] {session_id}: no running tcpdump", file=sys.stderr)
-        return 1
+        return 0
     pid = int(pid_file.read_text().strip())
+    if not _tcpdump_alive(pid):
+        print(f"[capture] {session_id}: pid {pid} is not tcpdump (stale)")
+        pid_file.unlink(missing_ok=True)
+        return 0
     # SIGINT lets tcpdump flush buffers and write the pcap trailer cleanly.
-    subprocess.run(["kill", "-INT", str(pid)], check=False)
+    # The container image has no `kill` binary, so signal via os.kill.
+    try:
+        os.kill(pid, signal.SIGINT)
+    except ProcessLookupError:
+        pass
 
     # Wait for the process to actually exit so the final pcap is flushed.
     for _ in range(50):                       # up to ~5 s
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
+        if not _tcpdump_alive(pid):
             break
         time.sleep(0.1)
     else:
-        subprocess.run(["kill", "-9", str(pid)], check=False)
+        # Re-validate before the fallback kill: the pid may have been recycled
+        # between the check above and now.
+        if _tcpdump_alive(pid):
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            time.sleep(0.2)
 
     started = (out / "started_at").read_text().strip()
     (out / "ended_at").write_text(str(int(time.time())))
 
-    # Canonical artifact name per §3.2: <session_id>.pcapng
-    rotated = sorted(out.glob("session_*.pcapng"))
+    # Canonical artifact name per §3.2: <session_id>.pcapng. The newest/largest
+    # rotated file wins — a stale canonical from an aborted run must not mask
+    # the fresh capture.
+    rotated = sorted(out.glob("session_*"))
     canonical = out / f"{session_id}.pcapng"
-    if rotated and not canonical.exists():
+    if rotated:
         largest = max(rotated, key=lambda p: p.stat().st_size)
         largest.replace(canonical)
+        for extra in rotated:
+            extra.unlink(missing_ok=True)
     pid_file.unlink(missing_ok=True)
     print(f"[capture] {session_id}: stopped (started {started})")
     return 0
