@@ -7,6 +7,7 @@ capture container writes the pcapng, manifest.json, and save-keys output.
 from __future__ import annotations
 
 import subprocess
+import sys
 from typing import Any
 
 DURATION_DEFAULT_S = 120
@@ -26,7 +27,12 @@ SERVER_BY_FAMILY = {"ipv4": "10.2.0.10", "ipv6": "fd02::10"}
 
 
 def _sh(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, check=check, text=True, capture_output=True)
+    try:
+        return subprocess.run(cmd, check=check, text=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        print(f"[lab] command failed (exit {e.returncode}): {' '.join(cmd)}\n{e.stderr}",
+              file=sys.stderr)
+        raise
 
 
 def parse_duration(spec: str) -> int:
