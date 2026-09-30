@@ -102,6 +102,51 @@ def test_live_permission_error_is_service_unavailable(client, monkeypatch):
     assert "NET_RAW/NET_ADMIN" in res.json()["detail"]
 
 
+def test_reports_serve_all_artifacts(client, tmp_path, monkeypatch):
+    """The reports router serves PDFs, report.json and findings.csv (mvp.md §5).
+
+    Regression: only {kind}.pdf was routed, so the Reports screen got 404 for
+    report.json and 405 for HEAD probes (web/lib/api.ts headExists), rendering
+    every report as "missing".
+    """
+    from analyzer import config
+
+    # config.REPORTS_DIR is bound at import time; point it at the test dir.
+    monkeypatch.setattr(config, "REPORTS_DIR", tmp_path / "reports")
+    aid = "an_test1234"
+    report_dir = tmp_path / "reports" / aid
+    report_dir.mkdir(parents=True)
+    (report_dir / "report.json").write_text("{\"security_score\": 96}")
+    (report_dir / "findings.csv").write_text("rule_id\ntest\n")
+    (report_dir / "executive.pdf").write_bytes(b"%PDF-1.7 fake")
+    (report_dir / "technical.pdf").write_bytes(b"%PDF-1.7 fake")
+
+    base = f"/api/v1/analyses/{aid}/reports"
+    res = client.get(f"{base}/report.json")
+    assert res.status_code == 200
+    assert res.json() == {"security_score": 96}
+
+    res = client.get(f"{base}/findings.csv")
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/csv")
+
+    res = client.get(f"{base}/executive.pdf")
+    assert res.status_code == 200
+    assert res.content.startswith(b"%PDF")
+
+    # HEAD must succeed: the web client uses it for the ready/missing badges.
+    for artifact in ("executive.pdf", "technical.pdf", "report.json", "findings.csv"):
+        res = client.head(f"{base}/{artifact}")
+        assert res.status_code == 200, (artifact, res.status_code)
+
+
+def test_reports_unknown_kind_and_missing_files_404(client):
+    base = "/api/v1/analyses/an_nope/reports"
+    assert client.get(f"{base}/executive.docx").status_code == 404
+    assert client.get(f"{base}/executive.pdf").status_code == 404
+    assert client.head(f"{base}/report.json").status_code == 404
+
+
 def test_live_capture_error_is_service_unavailable(client, monkeypatch):
     monkeypatch.setenv("CS_LIVE_ENABLED", "true")
     from capture import live
