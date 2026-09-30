@@ -125,7 +125,16 @@ def _summary(conn, row) -> dict:
 
 def _rule_titles() -> dict[str, str]:
     """rule_id -> title from the plain-YAML rule pack (mvp.md §3.5)."""
-    titles: dict[str, str] = {}
+    return {rid: meta["title"] for rid, meta in _rules_meta().items()}
+
+
+def _rules_meta() -> dict[str, dict]:
+    """rule_id -> {title, category, refs, fix} from the YAML rule packs.
+
+    The finding table stores only rule_id/severity/likelihood/confidence/
+    evidence; display metadata lives in the rule pack and is joined here.
+    """
+    meta: dict[str, dict] = {}
     for pack in sorted(config.RULES_DIR.glob("*.yaml")):
         try:
             rules = yaml.safe_load(pack.read_text())
@@ -135,8 +144,13 @@ def _rule_titles() -> dict[str, str]:
             continue
         for rule in rules:
             if isinstance(rule, dict) and rule.get("id"):
-                titles[str(rule["id"])] = str(rule.get("title") or rule["id"])
-    return titles
+                meta[str(rule["id"])] = {
+                    "title": str(rule.get("title") or rule["id"]),
+                    "category": str(rule.get("category") or "unknown"),
+                    "refs": [str(r) for r in (rule.get("refs") or [])],
+                    "fix": str(rule.get("fix") or ""),
+                }
+    return meta
 
 
 def _top_findings(conn, analysis_id: str, titles: dict[str, str] | None = None,
@@ -188,12 +202,28 @@ def traffic(analysis_id: str) -> list[dict]:
 
 
 def findings(analysis_id: str) -> list[dict]:
+    rows = None
     conn = db.connect()
     try:
-        return [dict(r) | {"evidence": json.loads(r["evidence"])} for r in conn.execute(
-            "SELECT * FROM finding WHERE analysis_id = ?", (analysis_id,))]
+        rows = conn.execute(
+            "SELECT * FROM finding WHERE analysis_id = ?", (analysis_id,)).fetchall()
     finally:
         conn.close()
+    if not rows:
+        return []
+    meta = _rules_meta()
+    out = []
+    for r in rows:
+        f = dict(r) | {"evidence": json.loads(r["evidence"])}
+        m = meta.get(r["rule_id"], {})
+        # Title/category/refs/fix live in the rule pack, not the DB; the web
+        # EvidenceDrawer reads them (refs.length crashed when absent).
+        f["title"] = m.get("title", r["rule_id"])
+        f["category"] = m.get("category", "unknown")
+        f["refs"] = m.get("refs", [])
+        f["fix"] = m.get("fix", "")
+        out.append(f)
+    return out
 
 
 def threat_matrix(analysis_id: str) -> list[list[dict]]:
