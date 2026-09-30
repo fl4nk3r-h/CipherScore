@@ -42,6 +42,19 @@ else:
 print(f"[entrypoint] {role}: rendered {prof['id']} ({mode})")
 PY
 
+# Daemon settings (charon filelog + save-keys) from the repo template — the
+# stock Debian /etc/strongswan.conf has neither, so failures were invisible.
+python3 - "$PROFILES_DIR" <<'PY'
+import pathlib, sys
+from jinja2 import Environment, FileSystemLoader
+
+env = Environment(loader=FileSystemLoader("/templates"),
+                  keep_trailing_newline=True)
+cfg = env.get_template("strongswan.conf.j2").render()
+pathlib.Path("/etc/strongswan.conf").write_text(cfg)
+print("[entrypoint] rendered /etc/strongswan.conf (filelog + save-keys)")
+PY
+
 # Enable save-keys when the plugin exists (see Dockerfile note); else say so.
 if [ -f /etc/strongswan.d/charon/save-keys.conf ]; then
   sed -i 's/load = no/load = yes/' /etc/strongswan.d/charon/save-keys.conf || true
@@ -56,6 +69,15 @@ if [ -f /etc/strongswan.d/charon/openssl.conf ]; then
   sed -i 's/load = no/load = yes/' /etc/strongswan.d/charon/openssl.conf
   echo "openssl plugin enabled (ECP DH groups)"
 fi
+
+# Routes to BOTH stubs on BOTH gateways: after decapsulation a gateway must
+# forward inner traffic toward its local client/server (10.1 via client-a,
+# 10.2 via server-b); without the opposite route replies fall to the default
+# gateway and die (mvp.md §3.1).
+ip route replace 10.1.0.0/24 via 172.30.0.10 || true
+ip route replace 10.2.0.0/24 via 172.30.0.11 || true
+ip route replace fd01::/64 via fd30::10 || true
+ip route replace fd02::/64 via fd30::11 || true
 
 # IKEv2: load via swanctl/vici (reads /etc/swanctl/swanctl.conf by default).
 # IKEv1: load via stroke/starter (ipsec.conf). starter owns the daemon
