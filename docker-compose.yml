@@ -1,8 +1,11 @@
 # CipherScope MVP services (docs/repo.md §11). Lab runs separately via docker-compose.lab.yml.
 services:
   api:
-    build: ./api
-    ports: ["8000:8000"]
+    # Root context: the image needs analyzer/, api/, rules/ and lab/profiles/.
+    build: { context: ., dockerfile: api/Dockerfile }
+    # Host 8000 is often taken by other stacks; Grafana reaches the API via the
+    # internal network (http://api:8000), the published port is for debugging.
+    ports: ["8010:8000"]
     volumes:
       - ./data:/data
       - ./models:/models:ro
@@ -24,22 +27,33 @@ services:
     depends_on: [api]
 
   grafana:
-    image: grafana/grafana:11.6.1
+    # 11.6.12: Infinity 4.x requires Grafana >= 11.6.11 (grafanaDependency);
+    # 11.6.1 makes the auto-installed datasource unloadable in the frontend.
+    image: grafana/grafana:11.6.12
     ports: ["${GRAFANA_PORT:-3001}:3000"]
     volumes:
       - grafana-storage:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     environment:
       GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-cipherscope-soc}
       GF_INSTALL_PLUGINS: yesoreyeram-infinity-datasource
-      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/soc-overview.json
+      # Grafana preinstalls v13-era explore apps (lokiexplore, pyroscope, …)
+      # into the volume; they fail to load on 11.x with SystemJS Error#7.
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_PLUGINS_PREINSTALL_AUTO_UPDATE: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/soc-overview.json
     depends_on: [api]
 
   capture:
     build: ./capture
     container_name: capture
-    network_mode: "container:lab-bridge-tap"   # attaches to the lab bridge
+    # Shares gw-a's netns: a Linux bridge only floods unknown-MAC unicast, so a
+    # tap port on lab-bridge would miss gw-a<->gw-b ESP/IKE frames entirely.
+    # From inside gw-a, tcpdump on eth0 sees the ESP/IKE on the wire (post-xfrm).
+    # (By name, so it follows gw-a recreations instead of pinning a dead ID.)
+    network_mode: "container:gw-a"
     cap_add: [NET_RAW, NET_ADMIN]
     volumes:
       - ./data/sessions:/sessions
