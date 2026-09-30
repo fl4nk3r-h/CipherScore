@@ -2,6 +2,14 @@
 # server-b entrypoint: starts every service the traffic generators talk to (mvp.md §3.1).
 set -euo pipefail
 
+# Inner addressing (mvp.md §3.1 topology): server-b sits behind gw-b on 10.2.0.0/24
+# and answers traffic arriving from the 10.1.0.0/24 side through the tunnel.
+# src pinning mirrors client-a (see its entrypoint) so replies take the tunnel.
+ip addr add 10.2.0.10/24 dev lo 2>/dev/null || true
+ip route replace 10.1.0.0/24 via 172.30.0.3 src 10.2.0.10 2>/dev/null || true
+ip route replace fd01::/64 via fd30::3 src fd02::10 2>/dev/null || true
+for f in /proc/sys/net/ipv4/conf/*/rp_filter; do echo 0 > "$f" 2>/dev/null || true; done
+
 mkdir -p /var/www/hls
 
 # Web mirror + HLS video segments (video streaming generator pulls these).
