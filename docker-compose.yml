@@ -38,6 +38,7 @@ services:
 
   capture:
     build: ./capture
+    container_name: capture
     network_mode: "container:lab-bridge-tap"   # attaches to the lab bridge
     cap_add: [NET_RAW, NET_ADMIN]
     volumes:
