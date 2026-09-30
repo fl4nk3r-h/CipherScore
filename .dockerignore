@@ -1,0 +1,20 @@
+# Keep the root-context api image build small (dockerfile: api/Dockerfile).
+# Heavy/irrelevant dirs are excluded by name; anything else (analyzer/, api/,
+# rules/, lab/, models/, pyproject.toml, …) stays available to the build.
+data/
+web/
+capture/
+.venv/
+.git/
+dataset/
+sample-pcaps/
+docs/
+grafana/
+scripts/
+tests/
+node_modules/
+__pycache__/
+**/__pycache__/
+*.sqlite3
+*.pcap
+*.pcapng
