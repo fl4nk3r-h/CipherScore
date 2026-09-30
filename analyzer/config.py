@@ -7,6 +7,8 @@ from pathlib import Path
 DATA_DIR = Path(os.environ.get("CS_DATA_DIR", "./data"))
 MODELS_DIR = Path(os.environ.get("CS_MODELS_DIR", "./models"))
 RULES_DIR = Path(os.environ.get("CS_RULES_DIR", "./rules"))
+# strongSwan profile matrix served by GET /lab/profiles (api/routers/lab.py).
+LAB_PROFILES_DIR = Path(os.environ.get("CS_LAB_PROFILES_DIR", "./lab/profiles"))
 
 UPLOADS_DIR = DATA_DIR / "uploads"
 SESSIONS_DIR = DATA_DIR / "sessions"
