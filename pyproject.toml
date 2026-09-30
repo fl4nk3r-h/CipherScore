@@ -33,6 +33,13 @@ dev = [
     "jsonschema",
 ]
 
+[tool.setuptools]
+# Explicit discovery: the repo root hosts several top-level dirs (analyzer, api,
+# lab, models, …) and only analyzer+api are importable Python packages.
+packages = ["analyzer", "api", "analyzer.features", "analyzer.infer",
+            "analyzer.parse", "analyzer.posture", "analyzer.report",
+            "api.routers", "api.repositories"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
