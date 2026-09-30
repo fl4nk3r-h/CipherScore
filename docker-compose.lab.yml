@@ -20,6 +20,7 @@ services:
   lab-bridge-tap:
     # Idle container that holds the bridge attached for the capture sidecar
     # (docker-compose.yml references network_mode: "container:lab-bridge-tap").
+    container_name: lab-bridge-tap
     image: alpine:3.20
     command: ["sleep", "infinity"]
     networks:
