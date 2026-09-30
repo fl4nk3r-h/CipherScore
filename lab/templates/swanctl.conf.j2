@@ -24,6 +24,10 @@ connections {
 {% else %}
         mode = transport
 {% endif %}
+        {# Bring the CHILD_SA up when the IKE_SA is initiated (swanctl's default
+           start_action=none installs nothing — only --child would, which the
+           runner does not use). #}
+        start_action = start
 {% if profile.esp_proposal.startswith("ah-") %}
         {# AH-only: any ah_proposals entry makes strongSwan use AH instead of ESP. #}
         ah_proposals = {{ profile.esp_proposal[3:] | swan_prop }}
