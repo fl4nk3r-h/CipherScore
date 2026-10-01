@@ -13,21 +13,21 @@ import type { MatrixCell, Summary } from "@/lib/types";
 export default function Summary({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data, error, mutate } = useSWR<Summary>(`/analyses/${id}`, api.fetcher, {
-    refreshInterval: (current) => current?.status === "completed" ? 0 : 1000,
+    refreshInterval: (current) => current?.status === "completed" || current?.status === "failed" ? 0 : 1000,
   });
-  const { data: matrix } = useSWR<MatrixCell[]>(
-    `/analyses/${id}/threat-matrix`, api.fetcher);
+  const { data: matrix } = useSWR<MatrixCell[][]>(
+    data?.status === "completed" ? `/analyses/${id}/threat-matrix` : null, api.fetchArray);
 
   if (error) return <ErrorState message={`Could not load analysis: ${error.message}`} onRetry={mutate} />;
   if (!data) return <CardSkeletons rows={2} />;
 
   return (
     <div className="space-y-4">
-      {data.status !== "completed" && (
+      {(data.status === "queued" || data.status === "running") && (
         <div className="card">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-semibold">Analysis progress</h2>
-            <span className="text-sm capitalize text-slate-400">{data.status}</span>
+            <span className="text-sm capitalize text-zinc-400">{data.status}</span>
           </div>
           <ProgressStream url={api.url(`/analyses/${id}/events`)} />
         </div>
@@ -42,19 +42,19 @@ export default function Summary({ params }: { params: Promise<{ id: string }> })
           <ScoreGauge score={data.security_score} grade={data.grade} />
         </div>
         <div className="card">
-          <h2 className="text-sm text-slate-400">Risk Score</h2>
+          <h2 className="text-sm text-zinc-400">Risk Score</h2>
           <p className="text-3xl">{data.risk_score ?? "—"}</p>
-          <h2 className="mt-2 text-sm text-slate-400">AI Confidence</h2>
+          <h2 className="mt-2 text-sm text-zinc-400">AI Confidence</h2>
           <p className="text-3xl">
             {data.ai_confidence != null
               ? `${Math.round(data.ai_confidence * 100)}%`
               : "—"}
           </p>
-          <h2 className="mt-2 text-sm text-slate-400">Tunnels / SAs</h2>
+          <h2 className="mt-2 text-sm text-zinc-400">Tunnels / SAs</h2>
           <p className="text-3xl">{data.sa_count}</p>
         </div>
         <div className="card md:col-span-1">
-          <ThreatMatrix cells={matrix ?? []} />
+          <ThreatMatrix cells={matrix?.flat() ?? []} />
         </div>
         <div className="card md:col-span-3">
           <h2 className="mb-2 font-semibold">Top findings</h2>
@@ -65,7 +65,7 @@ export default function Summary({ params }: { params: Promise<{ id: string }> })
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-500">No high/critical findings.</p>
+            <p className="text-sm text-zinc-500">No high/critical findings.</p>
           )}
         </div>
       </div>

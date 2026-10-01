@@ -17,14 +17,14 @@ const REPORTS = [
 
 export default function Reports({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { data: summary, error: summaryError } = useSWR<Summary>(`/analyses/${id}`, api.fetcher, {
+  const { data: summary, error: summaryError, mutate: reloadSummary } = useSWR<Summary>(`/analyses/${id}`, api.fetcher, {
     refreshInterval: (current) =>
-      current?.status === "completed" || current === undefined ? 0 : 2000,
+      current?.status === "completed" || current?.status === "failed" || current === undefined ? 0 : 2000,
   });
   const completed = summary?.status === "completed";
 
   const { data: report, error: reportError, mutate: reloadReport } = useSWR<ReportContext>(
-    `/analyses/${id}/reports/report.json`, api.fetcher);
+    completed ? `/analyses/${id}/reports/report.json` : null, api.fetcher);
   const pdfsKey = completed ? `/analyses/${id}/reports/pdf-status` : null;
   const { data: pdfs } = useSWR<Record<string, boolean>>(
     pdfsKey,
@@ -42,7 +42,7 @@ export default function Reports({ params }: { params: Promise<{ id: string }> })
   const base = api.url(`/analyses/${id}/reports`);
 
   if (summaryError)
-    return <ErrorState message={`Could not load analysis: ${summaryError.message}`} />;
+    return <ErrorState message={`Could not load analysis: ${summaryError.message}`} onRetry={reloadSummary} />;
   if (!summary) return <CardSkeletons rows={2} />;
   if (!completed) {
     return (
@@ -60,11 +60,11 @@ export default function Reports({ params }: { params: Promise<{ id: string }> })
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Reports</h1>
+      <h2 className="text-lg font-semibold text-zinc-100">Reports</h2>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {REPORTS.map((r) => {
-          const available = pdfs?.[r.kind] ?? true;
+          const available = pdfs?.[r.kind] ?? false;
           const show = preview === r.kind;
           return (
             <Card key={r.kind}>
@@ -74,7 +74,7 @@ export default function Reports({ params }: { params: Promise<{ id: string }> })
                   <CardDescription>{r.desc}</CardDescription>
                 </div>
                 <Badge variant={available ? "success" : "secondary"}>
-                  {available ? "ready" : "missing"}
+                  {pdfs ? (available ? "ready" : "missing") : "checking"}
                 </Badge>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -99,13 +99,13 @@ export default function Reports({ params }: { params: Promise<{ id: string }> })
                         id={`preview-${r.kind}`}
                         title={`${r.label} preview`}
                         src={`${base}/${r.kind}.pdf`}
-                        className="h-[480px] w-full rounded border border-slate-800 bg-white"
+                        className="h-[480px] w-full rounded border border-zinc-800 bg-white"
                       />
                     )}
                   </>
                 ) : (
-                  <p className="text-sm text-slate-500">
-                    The {r.kind} report was not generated for this analysis.
+                  <p className="text-sm text-zinc-500">
+                    {pdfs ? `The ${r.kind} report was not generated for this analysis.` : "Checking report availability…"}
                   </p>
                 )}
               </CardContent>
@@ -135,7 +135,7 @@ export default function Reports({ params }: { params: Promise<{ id: string }> })
 
           {report && report.top_findings.length > 0 && (
             <div className="text-sm">
-              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-400">
                 Top findings
               </h3>
               <ul className="space-y-1">
@@ -154,7 +154,7 @@ export default function Reports({ params }: { params: Promise<{ id: string }> })
             {showJson ? "Hide" : "Show"} raw JSON
           </Button>
           {showJson && report && (
-            <pre id="json-preview" className="max-h-80 overflow-auto rounded bg-slate-950 p-3 text-[11px] text-slate-300">
+            <pre id="json-preview" className="max-h-80 overflow-auto rounded bg-zinc-950 p-3 text-[11px] text-zinc-300">
               {JSON.stringify(report, null, 2)}
             </pre>
           )}
@@ -175,8 +175,8 @@ export default function Reports({ params }: { params: Promise<{ id: string }> })
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded border border-slate-800 bg-slate-950/40 p-2 text-center">
-      <div className="text-xs text-slate-500">{label}</div>
+    <div className="rounded border border-zinc-800 bg-zinc-950/40 p-2 text-center">
+      <div className="text-xs text-zinc-500">{label}</div>
       <div className="text-lg font-semibold">{value}</div>
     </div>
   );

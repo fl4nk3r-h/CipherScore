@@ -25,7 +25,7 @@ export function Progress({ value, max = 100, tone = "cyan", className, ...props 
       aria-valuemax={100}
       aria-valuenow={Math.round(clamped)}
       aria-label={props["aria-label"] ?? undefined}
-      className={cn("h-2 w-full overflow-hidden rounded bg-slate-800", className)}
+      className={cn("h-2 w-full overflow-hidden rounded bg-zinc-800", className)}
       {...props}
     >
       <div

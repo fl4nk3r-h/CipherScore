@@ -127,6 +127,24 @@ export interface SessionAccuracy {
   missing: number;
 }
 
+export interface LabRunStatus {
+  run_id: string;
+  status: "queued" | "running" | "completed" | "partial" | "failed";
+  phase: string;
+  total: number;
+  processed: number;
+  completed: number;
+  skipped: number;
+  failed: number;
+  current_session: string | null;
+  eta_seconds: number | null;
+  started_at: number;
+  updated_at: number;
+  finished_at: number | null;
+  error: string | null;
+  last_error: string | null;
+}
+
 export interface LabSession {
   session_id: string;
   profile: string;

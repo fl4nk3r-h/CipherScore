@@ -7,7 +7,7 @@ export function ConfidenceBadge({ value }: { value: TaggedValue | undefined }) {
   return (
     <span className="inline-flex items-center gap-2">
       <span className={`tag-${value.tag}`}>{value.tag}</span>
-      <span className="text-xs text-slate-400">{pct}</span>
+      <span className="text-xs text-zinc-400">{pct}</span>
     </span>
   );
 }

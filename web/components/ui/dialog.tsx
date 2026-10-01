@@ -75,15 +75,15 @@ export function Dialog({ open, onClose, labelledBy, className, children }: Dialo
   if (!open) return null;
   return createPortal(
     <div className="fixed inset-0 z-50 overflow-y-auto" role="presentation">
-      <div className="fixed inset-0 bg-slate-950/70" aria-hidden="true" />
+      <div className="fixed inset-0 bg-zinc-950/70" aria-hidden="true" />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledByRef.current}
         className={cn(
-          "relative mx-auto my-8 w-[calc(100%-2rem)] max-w-96 rounded-lg border border-slate-700 "
-            + "bg-slate-900 p-4 text-slate-100 shadow-xl",
+          "relative mx-auto my-8 w-[calc(100%-2rem)] max-w-96 rounded-lg border border-zinc-700 "
+            + "bg-zinc-900 p-4 text-zinc-100 shadow-xl",
           className,
         )}
       >

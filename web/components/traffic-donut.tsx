@@ -10,7 +10,7 @@ export function TrafficDonut({ windows }: { windows: { pred: string | null; p: n
     if (w.pred) counts.set(w.pred, (counts.get(w.pred) ?? 0) + 1);
   }
   const data = [...counts.entries()].map(([name, value]) => ({ name, value }));
-  if (!data.length) return <p className="text-sm text-slate-500">No classified windows.</p>;
+  if (!data.length) return <p className="text-sm text-zinc-500">No classified windows.</p>;
   return (
     <ResponsiveContainer width="100%" height={220}>
       <PieChart>

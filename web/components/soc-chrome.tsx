@@ -7,6 +7,7 @@ import {
   FileUp,
   LayoutDashboard,
   Radio,
+  ShieldAlert,
 } from "lucide-react";
 import useSWR from "swr";
 import { api } from "@/lib/api";
@@ -18,6 +19,7 @@ const NAV = [
       { href: "/", label: "Overview", icon: LayoutDashboard, match: (p: string) => p === "/" },
       { href: "/analyses/new", label: "New analysis", icon: FileUp, match: (p: string) => p.startsWith("/analyses") },
       { href: "/live", label: "Live intercept", icon: Radio, match: (p: string) => p.startsWith("/live") },
+      { href: "/threats", label: "Threat alerts", icon: ShieldAlert, match: (p: string) => p.startsWith("/threats") },
     ],
   },
   {
@@ -68,6 +70,7 @@ export function SocChrome({ children }: { children: React.ReactNode }) {
                     <Link
                       key={it.href}
                       href={it.href}
+                      aria-current={active ? "page" : undefined}
                       className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] transition-colors ${
                         active
                           ? "bg-white/[0.07] font-medium text-zinc-50"
@@ -76,9 +79,6 @@ export function SocChrome({ children }: { children: React.ReactNode }) {
                     >
                       <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
                       {it.label}
-                      {it.href === "/live" && (
-                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-red-400" />
-                      )}
                     </Link>
                   );
                 })}
@@ -96,7 +96,7 @@ export function SocChrome({ children }: { children: React.ReactNode }) {
               <div className="truncate text-[13px] font-medium text-zinc-200">Analyst</div>
               <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                 <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-emerald-400" : "bg-amber-400"}`} />
-                {online ? "Sensor online" : "Demo feed"}
+                {online ? "API connected" : "API offline"}
               </div>
             </div>
           </div>
@@ -123,8 +123,8 @@ export function SocChrome({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="flex gap-1 overflow-x-auto px-4 pb-2.5 lg:hidden">
-            {[{ href: "/", label: "Overview" }, { href: "/analyses/new", label: "New" }, { href: "/lab", label: "Lab" }, { href: "/live", label: "Live" }].map((n) => (
-              <Link key={n.href} href={n.href} className="rounded-lg px-3 py-1.5 text-[13px] text-zinc-400 hover:bg-white/5 hover:text-zinc-200">
+            {[{ href: "/", label: "Overview" }, { href: "/analyses/new", label: "New" }, { href: "/lab", label: "Lab" }, { href: "/live", label: "Live" }, { href: "/threats", label: "Threats" }].map((n) => (
+              <Link key={n.href} href={n.href} aria-current={pathname === n.href ? "page" : undefined} className={`rounded-lg px-3 py-1.5 text-[13px] hover:bg-white/5 hover:text-zinc-200 ${pathname === n.href ? "bg-white/[0.07] text-zinc-100" : "text-zinc-400"}`}>
                 {n.label}
               </Link>
             ))}

@@ -31,7 +31,7 @@ export function ScoreTrend({ analyses }: { analyses: AnalysisListItem[] }) {
       id: a.analysis_id,
     }));
 
-  if (!data.length) return <p className="text-sm text-slate-500">No scored analyses yet.</p>;
+  if (!data.length) return <p className="text-sm text-zinc-500">No scored analyses yet.</p>;
   return (
     <ResponsiveContainer width="100%" height={240}>
       <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>

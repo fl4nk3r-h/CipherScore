@@ -24,7 +24,7 @@ export default function Threats() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api.fetcher<ThreatAlert[]>("/threats/alerts").then(setAlerts).catch((e) => setError(String(e)));
+    api.fetchArray<ThreatAlert>("/threats/alerts").then(setAlerts).catch((e) => setError(String(e)));
     const es = new EventSource(api.url("/threats/events"));
     es.onopen = () => setStatus("Connected");
     es.onerror = () => setStatus("Reconnecting");
@@ -58,9 +58,9 @@ export default function Threats() {
     } catch (cause) { setError(String(cause)); }
   }
 
-  return <div className="space-y-5">
+  return <div className="mx-auto max-w-[1400px] space-y-5">
     <div className="flex items-center justify-between">
-      <div><h1 className="text-2xl font-bold">Passive threat alerts</h1><p className="text-sm text-slate-400">{status}</p></div>
+      <div><h1 className="text-xl font-semibold tracking-tight text-zinc-50">Passive threat alerts</h1><p className="text-sm text-zinc-400">{status}</p></div>
       <Button onClick={toggleLive} variant={running ? "destructive" : "default"}>
         {running ? "Stop mirror" : "Start mirror"}
       </Button>
@@ -73,13 +73,13 @@ export default function Threats() {
           <Badge variant={alert.severity === "high" || alert.severity === "critical" ? "destructive" : "warning"}>{alert.severity}</Badge>
           <span className="font-semibold capitalize">{alert.threat_class.replaceAll("_", " ")}</span>
           <span>{Math.round(alert.confidence * 100)}% confidence</span>
-          <span className="text-xs text-slate-400">{new Date(alert.timestamp * 1000).toLocaleString()}</span>
-          <span className="font-mono text-xs text-slate-500">{alert.flow_id}</span>
+          <span className="text-xs text-zinc-400">{new Date(alert.timestamp * 1000).toLocaleString()}</span>
+          <span className="font-mono text-xs text-zinc-500">{alert.flow_id}</span>
         </summary>
-        <div className="mt-3 text-xs text-slate-400">Source: {alert.source} · Detector: {alert.model_version}</div>
+        <div className="mt-3 text-xs text-zinc-400">Source: {alert.source} · Detector: {alert.model_version}</div>
         <pre className="mt-2 overflow-x-auto text-xs">{JSON.stringify(alert.evidence, null, 2)}</pre>
       </details>)}
-      {!alerts.length && <p className="card text-sm text-slate-400">No alerts yet. Replay a PCAP or start passive mirror capture.</p>}
+      {!alerts.length && <p className="card text-sm text-zinc-400">No alerts yet. Replay a PCAP or start passive mirror capture.</p>}
     </div>
   </div>;
 }

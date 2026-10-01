@@ -15,7 +15,7 @@ const SEVS = ["all", "critical", "high", "medium", "low", "info"] as const;
 
 export default function Findings({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { data, error, mutate } = useSWR<Finding[]>(`/analyses/${id}/findings`, api.fetcher);
+  const { data, error, mutate } = useSWR<Finding[]>(`/analyses/${id}/findings`, api.fetchArray);
   const [sev, setSev] = useState<(typeof SEVS)[number]>("all");
   const [selected, setSelected] = useState<Finding | null>(null);
   if (error) return <ErrorState message={`Could not load findings: ${error.message}`} onRetry={mutate} />;

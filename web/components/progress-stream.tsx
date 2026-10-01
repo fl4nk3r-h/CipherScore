@@ -18,12 +18,12 @@ export function ProgressStream({ url }: { url: string }) {
   ) : 0;
   return (
     <div>
-      <div className="h-2 w-full rounded bg-slate-800">
+      <div className="h-2 w-full rounded bg-zinc-800">
         <div className="h-2 rounded bg-cyan-600 transition-all" style={{ width: `${frac * 100}%` }} />
       </div>
       <ul className="mt-2 flex gap-3 text-xs">
         {STAGES.map(([stage, f]) => (
-          <li key={stage} className={frac >= f ? "text-emerald-300" : "text-slate-500"}>
+          <li key={stage} className={frac >= f ? "text-emerald-300" : "text-zinc-500"}>
             {stage} {frac >= f ? "✓" : ""}
           </li>
         ))}

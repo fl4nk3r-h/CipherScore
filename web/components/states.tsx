@@ -44,7 +44,7 @@ export function EmptyState({
   return (
     <div className="card flex flex-col items-center gap-2 py-8 text-center">
       <h3 className="font-semibold">{title}</h3>
-      <p className="max-w-md text-sm text-slate-400">{description}</p>
+      <p className="max-w-md text-sm text-zinc-400">{description}</p>
       {action}
     </div>
   );
