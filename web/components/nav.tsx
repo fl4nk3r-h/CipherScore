@@ -9,6 +9,7 @@ const NAV = [
   { href: "/analyses/new", label: "New Analysis" },
   { href: "/lab", label: "Lab" },
   { href: "/live", label: "Live" },
+  { href: "/threats", label: "Threat Alerts" },
 ];
 
 export function Nav() {
