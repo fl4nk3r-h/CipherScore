@@ -11,7 +11,7 @@ import type { SAEvidence } from "@/lib/types";
 
 export default function SAs({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { data, error, mutate } = useSWR<SAEvidence[]>(`/analyses/${id}/sas`, api.fetcher);
+  const { data, error, mutate } = useSWR<SAEvidence[]>(`/analyses/${id}/sas`, api.fetchArray);
   if (error) return <ErrorState message={`Could not load SAs: ${error.message}`} onRetry={mutate} />;
   if (!data) return <CardSkeletons rows={2} />;
   return <SaTable sas={data} />;
