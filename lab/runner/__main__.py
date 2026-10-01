@@ -31,8 +31,17 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     if args.cmd == "run":
         profile_ids = render.select_profiles(PROFILES_DIR, args.profiles)
-        traffic = args.traffic.split(",") if not args.matrix else None
-        orchestrate.run_sessions(profile_ids, traffic, out_root=args.out)
+        if args.matrix:
+            import yaml
+            matrix = yaml.safe_load(pathlib.Path(args.matrix).read_text())
+            selected = matrix.get("profiles", "all")
+            profile_ids = render.select_profiles(PROFILES_DIR, ",".join(selected) if isinstance(selected, list) else selected)
+            traffic = matrix.get("traffic", [])
+            repetitions = int(matrix.get("defaults", {}).get("repetitions", 1))
+        else:
+            traffic = args.traffic.split(",")
+            repetitions = 1
+        orchestrate.run_sessions(profile_ids, traffic, out_root=args.out, repetitions=repetitions)
     return 0
 
 
