@@ -1,0 +1,26 @@
+{
+  "mode": {
+    "status": "not_trained",
+    "reason": "mode: need >=100 rows and >=2 classes; got 8 rows"
+  },
+  "cipher": {
+    "status": "not_trained",
+    "reason": "cipher: need >=100 rows and >=2 classes; got 8 rows"
+  },
+  "integ": {
+    "status": "not_trained",
+    "reason": "integ: need >=100 rows and >=2 classes; got 8 rows"
+  },
+  "pfs": {
+    "status": "not_trained",
+    "reason": "pfs: need >=100 rows and >=2 classes; got 8 rows"
+  },
+  "dh_group": {
+    "status": "not_trained",
+    "reason": "dh_group: need >=100 rows and >=2 classes; got 8 rows"
+  },
+  "traffic": {
+    "status": "not_trained",
+    "reason": "traffic: need >=100 rows and >=2 classes; got 14 rows"
+  }
+}
