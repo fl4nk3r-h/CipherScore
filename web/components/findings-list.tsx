@@ -9,7 +9,7 @@ const SEV_BORDER: Record<string, string> = {
   high: "border-l-orange-500",
   medium: "border-l-yellow-500",
   low: "border-l-lime-500",
-  info: "border-l-slate-600",
+  info: "border-l-zinc-600",
 };
 
 export function FindingsList({
@@ -19,7 +19,7 @@ export function FindingsList({
   findings: Finding[];
   onSelect: (f: Finding) => void;
 }) {
-  if (!findings.length) return <p className="text-sm text-slate-500">No findings.</p>;
+  if (!findings.length) return <p className="text-sm text-zinc-500">No findings.</p>;
   return (
     <ul className="space-y-2">
       {findings.map((f) => (
@@ -28,7 +28,7 @@ export function FindingsList({
             type="button"
             onClick={() => onSelect(f)}
             aria-label={`Show evidence for ${f.rule_id} ${f.title}`}
-            className={`block w-full rounded-lg border border-slate-800 border-l-4 ${SEV_BORDER[f.severity] ?? "border-l-slate-600"} bg-slate-900 p-4 text-left transition-colors hover:bg-slate-800/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500`}
+            className={`block w-full rounded-lg border border-zinc-800 border-l-4 ${SEV_BORDER[f.severity] ?? "border-l-zinc-600"} bg-zinc-900 p-4 text-left transition-colors hover:bg-zinc-800/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500`}
           >
             <div className="flex items-center justify-between gap-2">
               <span className="font-semibold">
@@ -36,10 +36,10 @@ export function FindingsList({
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 <Badge variant={severityBadgeVariant(f.severity)}>{f.severity}</Badge>
-                <span className="text-xs text-slate-400">conf {(f.confidence * 100).toFixed(0)}%</span>
+                <span className="text-xs text-zinc-400">conf {(f.confidence * 100).toFixed(0)}%</span>
               </span>
             </div>
-            <p className="mt-1 text-xs text-slate-400">{f.fix}</p>
+            <p className="mt-1 text-xs text-zinc-400">{f.fix}</p>
           </button>
         </li>
       ))}
