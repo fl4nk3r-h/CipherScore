@@ -6,6 +6,7 @@ minutes range and respects the 500 MB upload cap behavior (§13).
 """
 from __future__ import annotations
 
+import ipaddress
 import struct
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -26,67 +27,83 @@ class PacketRecord:
     ip_version: int
     inner_src: str | None = None  # for tunneled/decapsulated views if available
     inner_dst: str | None = None
+    length: int = 0
+    tcp_flags: int = 0
+    ttl: int | None = None
 
 
 def _inet_str(addr: bytes, version: int) -> str:
-    return ".".join(str(b) for b in addr) if version == 4 else \
-        ":".join(f"{b:02x}" for b in addr)
+    return str(ipaddress.ip_address(addr))
 
 
 def stream(pcap_path: Path) -> Iterator[PacketRecord]:
-    """Yield PacketRecord for each packet; never loads the file into memory."""
+    """Yield PacketRecord for each packet without loading the capture."""
     with open(pcap_path, "rb") as fh:
-        try:
-            reader = dpkt.pcapng.Reader(fh)
-        except ValueError:
-            fh.seek(0)
-            reader = dpkt.pcap.Reader(fh)
+        yield from stream_file(fh)
 
-        datalink = reader.datalink() if hasattr(reader, "datalink") else 1
-        for ts, buf in reader:
-            # DLT_RAW (101/12/14), DLT_IPV4 (228), DLT_IPV6 (229): the buffer is
-            # the bare IP packet (common for tcpdump -i any / crafted captures).
-            if datalink in (101, 12, 14, 228, 229):
-                ip_bytes = buf
-                version = ip_bytes[0] >> 4 if ip_bytes else 0
-                if version == 4:
-                    ip = dpkt.ip.IP(ip_bytes)
-                elif version == 6:
-                    ip = dpkt.ip6.IP6(ip_bytes)
-                else:
-                    continue
+
+def stream_file(fh) -> Iterator[PacketRecord]:
+    """Read a PCAP/PCAPNG file object, including a live tcpdump pipe."""
+    if hasattr(fh, "peek"):
+        magic = fh.peek(4)[:4]
+    else:
+        magic = fh.read(4)
+        fh.seek(-4, 1)
+    reader = dpkt.pcapng.Reader(fh) if magic == b"\x0a\x0d\x0d\x0a" else dpkt.pcap.Reader(fh)
+
+    datalink = reader.datalink() if hasattr(reader, "datalink") else 1
+    for ts, buf in reader:
+        # DLT_RAW (101/12/14), DLT_IPV4 (228), DLT_IPV6 (229): the buffer is
+        # the bare IP packet (common for tcpdump -i any / crafted captures).
+        if datalink in (101, 12, 14, 228, 229):
+            ip_bytes = buf
+            version = ip_bytes[0] >> 4 if ip_bytes else 0
+            if version == 4:
+                ip = dpkt.ip.IP(ip_bytes)
+            elif version == 6:
+                ip = dpkt.ip6.IP6(ip_bytes)
             else:
-                eth = dpkt.ethernet.Ethernet(buf)
-                ip = eth.data
-            if not isinstance(ip, (dpkt.ip.IP, dpkt.ip6.IP6)):
                 continue
-            version = 4 if isinstance(ip, dpkt.ip.IP) else 6
-            # dpkt IPv6 exposes the next-header as .nxt (not .p)
-            proto = getattr(ip, "p", None)
-            if version == 6:
-                proto = getattr(ip, "nxt", proto)
-            sport = dport = None
-            payload = b""
-            if version == 6 and proto in (50, 51) and getattr(ip, "all_extension_headers", None):
-                # dpkt treats ESP/AH as an IPv6 extension header; its bytes()
-                # already include the trailing data (do not double-count).
-                ext = ip.all_extension_headers[-1]
-                payload = bytes(ext)
-            elif proto == 17 and isinstance(ip.data, dpkt.udp.UDP):
-                sport, dport = ip.data.sport, ip.data.dport
-                payload = bytes(ip.data.data)
-            elif proto in (50, 51):
-                payload = bytes(ip.data)
-            yield PacketRecord(
-                ts=float(ts),
-                src=_inet_str(ip.src, version),
-                dst=_inet_str(ip.dst, version),
-                ip_proto=proto,
-                sport=sport,
-                dport=dport,
-                payload=payload,
-                ip_version=version,
-            )
+        else:
+            eth = dpkt.ethernet.Ethernet(buf)
+            ip = eth.data
+        if not isinstance(ip, (dpkt.ip.IP, dpkt.ip6.IP6)):
+            continue
+        version = 4 if isinstance(ip, dpkt.ip.IP) else 6
+        # dpkt IPv6 exposes the next-header as .nxt (not .p)
+        proto = getattr(ip, "p", None)
+        if version == 6:
+            proto = getattr(ip, "nxt", proto)
+        sport = dport = None
+        payload = b""
+        tcp_flags = 0
+        if version == 6 and proto in (50, 51) and getattr(ip, "all_extension_headers", None):
+            # dpkt treats ESP/AH as an IPv6 extension header; its bytes()
+            # already include the trailing data (do not double-count).
+            ext = ip.all_extension_headers[-1]
+            payload = bytes(ext)
+        elif proto == 17 and isinstance(ip.data, dpkt.udp.UDP):
+            sport, dport = ip.data.sport, ip.data.dport
+            payload = bytes(ip.data.data)
+        elif proto == 6 and isinstance(ip.data, dpkt.tcp.TCP):
+            sport, dport = ip.data.sport, ip.data.dport
+            tcp_flags = ip.data.flags
+            payload = bytes(ip.data.data)
+        elif proto in (50, 51):
+            payload = bytes(ip.data)
+        yield PacketRecord(
+            ts=float(ts),
+            src=_inet_str(ip.src, version),
+            dst=_inet_str(ip.dst, version),
+            ip_proto=proto,
+            sport=sport,
+            dport=dport,
+            payload=payload,
+            ip_version=version,
+            length=len(ip),
+            tcp_flags=tcp_flags,
+            ttl=getattr(ip, "ttl", getattr(ip, "hlim", None)),
+        )
 
 
 def total_packets(pcap_path: Path) -> int:
