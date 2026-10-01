@@ -10,7 +10,7 @@ export interface SSEEvent {
 
 export type SSEStatus = "idle" | "connecting" | "open" | "reconnecting" | "closed";
 
-const EVENT_TYPES = ["progress", "completed", "failed", "window", "ping", "alert"];
+const EVENT_TYPES = ["progress", "completed", "failed", "window", "ping", "alert", "closed"];
 
 export const MAX_BACKOFF_MS = 30_000;
 export const BASE_BACKOFF_MS = 1_000;
@@ -58,7 +58,7 @@ export function useSSE(url: string | null) {
 
       const onAny = (e: MessageEvent) => {
         const type = e.type || "message";
-        if (type === "completed" || type === "failed") doneRef.current = true;
+        if (type === "completed" || type === "failed" || type === "closed") doneRef.current = true;
         setLastEvent({ event: type, data: e.data });
       };
       for (const t of EVENT_TYPES) {
