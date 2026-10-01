@@ -4,7 +4,7 @@ from __future__ import annotations
 from analyzer.models import AnalysisResult, Finding
 
 
-def build_context(result: AnalysisResult) -> dict:
+def build_context(result: AnalysisResult, windows: list[dict] | None = None) -> dict:
     findings: list[Finding] = result.findings
     posture = result.posture
     counts = {s: sum(1 for f in findings if f.severity == s)
@@ -25,4 +25,5 @@ def build_context(result: AnalysisResult) -> dict:
         "sas": [sa.model_dump(mode="json") for sa in
                 (result.inferences.sas if result.inferences else [])],
         "findings": [f.model_dump(mode="json") for f in findings],
+        "traffic_windows": windows or [],
     }

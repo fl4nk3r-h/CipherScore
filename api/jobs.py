@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from analyzer import pipeline
+from api.repositories import analyses_repo
 
 EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="cs-analysis")
 _subscribers: dict[str, list[queue.Queue]] = {}
@@ -51,10 +52,12 @@ def submit(analysis_id: str, pcap_path: Path, rule_pack: str,
 
     def run() -> None:
         try:
+            analyses_repo.set_status(analysis_id, "running")
             pipeline.run_analysis(pcap_path, rule_pack=rule_pack,
                                   on_progress=progress, out_dir=None,
                                   analysis_id=analysis_id)
         except Exception as exc:  # noqa: BLE001 — job isolation: any failure must surface on the stream
+            analyses_repo.set_status(analysis_id, "failed")
             _publish(analysis_id, {"event": "failed", "error": str(exc)})
         finally:
             if on_done:

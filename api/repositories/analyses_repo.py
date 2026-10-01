@@ -24,6 +24,15 @@ def create(analysis_id: str, capture_id: str, rule_pack: str) -> None:
         conn.close()
 
 
+def set_status(analysis_id: str, status: str) -> None:
+    conn = db.connect()
+    try:
+        conn.execute("UPDATE analysis SET status = ? WHERE id = ?", (status, analysis_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def _report_dir(analysis_id: str):
     return config.REPORTS_DIR / analysis_id
 
@@ -49,6 +58,11 @@ def refresh_summary(analysis_id: str) -> None:
                 "VALUES (?, ?, ?, ?, ?)",
                 (sa_id, analysis_id, sa["spi"], json.dumps(sa.get("peers", [])),
                  json.dumps(sa)))
+        for window in context.get("traffic_windows", []):
+            conn.execute(
+                "INSERT INTO flow_window (sa_id, t0, features, pred, p) VALUES (?, ?, ?, ?, ?)",
+                (f"{analysis_id}-{window['sa_id']}", window["t0"],
+                 json.dumps(window.get("features", {})), window.get("pred"), window.get("p")))
         for f in context.get("findings", []):
             conn.execute(
                 "INSERT OR REPLACE INTO finding (id, analysis_id, rule_id, severity, "
@@ -194,9 +208,9 @@ def sas(analysis_id: str) -> list[dict]:
 def traffic(analysis_id: str) -> list[dict]:
     conn = db.connect()
     try:
-        return [dict(r) for r in conn.execute(
+        return [dict(r) | {"features": json.loads(r["features"])} for r in conn.execute(
             "SELECT fw.pred, fw.p, fw.t0, fw.features FROM flow_window fw "
-            "JOIN sa ON sa.id = fw.sa_id WHERE sa.analysis_id = ?", (analysis_id,))]
+            "JOIN sa ON sa.id = fw.sa_id WHERE sa.analysis_id = ? ORDER BY fw.t0", (analysis_id,))]
     finally:
         conn.close()
 

@@ -17,6 +17,7 @@ def run_analysis(pcap_path, rule_pack="ipsec-baseline", on_progress=noop) -> Ana
 """
 from __future__ import annotations
 
+import math
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -120,9 +121,16 @@ def run_analysis(pcap_path: Path, rule_pack: str = config.DEFAULT_RULE_PACK,
 
     # --- M6: reports --------------------------------------------------------
     out_dir = out_dir or (config.REPORTS_DIR / analysis_id)
+    for window in windows:
+        traffic = next((sa.traffic for sa in sas if sa.spi == window["sa_id"]), None)
+        if traffic:
+            window["pred"] = traffic.top
+            window["p"] = traffic.p
+        window["features"] = {k: (v if math.isfinite(v) else None)
+                              for k, v in window["features"].items()}
     context = build.build_context(AnalysisResult(
         analysis_id=analysis_id, status="completed", inferences=inferences,
-        findings=findings, posture=posture))
+        findings=findings, posture=posture), windows=windows)
     render.all_reports(context, out_dir)
     export.export_report_json(context, out_dir)
     export.export_findings_csv(context, out_dir)

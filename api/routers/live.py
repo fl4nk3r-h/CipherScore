@@ -25,6 +25,8 @@ _live_state = {"capturer": None, "q": queue.Queue()}
 def start_live() -> dict:
     if not settings.live_enabled:
         raise HTTPException(403, "live mode disabled (CS_LIVE_ENABLED=false)")
+    if _live_state["capturer"] is not None:
+        return {"status": "running", "window_s": 10, "interface": settings.live_interface}
     from capture.live import LiveCaptureError, LiveCapturer
     try:
         cap = LiveCapturer(settings.live_interface, data_dir=settings.data_dir)

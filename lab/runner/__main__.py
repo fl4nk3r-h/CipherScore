@@ -8,8 +8,9 @@ from __future__ import annotations
 import argparse
 import pathlib
 import sys
+import time
 
-from lab.runner import orchestrate, render
+from lab.runner import orchestrate, render, status
 
 PROFILES_DIR = pathlib.Path(__file__).resolve().parent.parent / "profiles"
 
@@ -28,6 +29,9 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument("--out", default="data/sessions",
                        help="session output root (capture side writes here)")
 
+    run_p.add_argument("--status-file", type=pathlib.Path, default=None,
+                       help="write progress for the Lab API")
+
     args = ap.parse_args(argv)
     if args.cmd == "run":
         profile_ids = render.select_profiles(PROFILES_DIR, args.profiles)
@@ -41,7 +45,30 @@ def main(argv: list[str] | None = None) -> int:
         else:
             traffic = args.traffic.split(",")
             repetitions = 1
-        orchestrate.run_sessions(profile_ids, traffic, out_root=args.out, repetitions=repetitions)
+        def progress(changes: dict) -> None:
+            if args.status_file:
+                status.update_status(args.status_file, **changes)
+
+        progress({"status": "running", "phase": "Starting Lab runner", "started_at": time.time()})
+        try:
+            counts = orchestrate.run_sessions(
+                profile_ids, traffic, out_root=args.out, repetitions=repetitions,
+                on_progress=progress,
+            )
+        except (Exception, SystemExit) as exc:  # noqa: BLE001 - persist any runner failure
+            message = str(exc) if not isinstance(exc, SystemExit) else "Another Lab sweep is already running"
+            progress({"status": "failed", "phase": "Lab run failed", "error": message,
+                      "eta_seconds": 0, "current_session": None,
+                      "finished_at": time.time()})
+            print(f"[lab] run failed: {message}", file=sys.stderr)
+            return 1
+        outcome = "partial" if counts["failed"] and counts["completed"] + counts["skipped"] else (
+            "failed" if counts["failed"] else "completed")
+        progress({**counts, "status": outcome,
+                  "phase": "Completed with session errors" if counts["failed"] else "Lab run complete",
+                  "eta_seconds": 0, "current_session": None,
+                  "finished_at": time.time()})
+        return 1 if outcome == "failed" else 0
     return 0
 
 
