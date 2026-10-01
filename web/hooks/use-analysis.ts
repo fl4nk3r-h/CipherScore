@@ -9,17 +9,17 @@ export function useAnalysis(id: string) {
 }
 
 export function useAnalysisSAs(id: string) {
-  return useSWR<SAEvidence[]>(`/analyses/${id}/sas`, api.fetcher);
+  return useSWR<SAEvidence[]>(`/analyses/${id}/sas`, api.fetchArray);
 }
 
 export function useAnalysisTraffic(id: string) {
-  return useSWR<TrafficWindow[]>(`/analyses/${id}/traffic`, api.fetcher);
+  return useSWR<TrafficWindow[]>(`/analyses/${id}/traffic`, api.fetchArray);
 }
 
 export function useAnalysisFindings(id: string) {
-  return useSWR<Finding[]>(`/analyses/${id}/findings`, api.fetcher);
+  return useSWR<Finding[]>(`/analyses/${id}/findings`, api.fetchArray);
 }
 
 export function useThreatMatrix(id: string) {
-  return useSWR(`/analyses/${id}/threat-matrix`, api.fetcher);
+  return useSWR(`/analyses/${id}/threat-matrix`, api.fetchArray);
 }
