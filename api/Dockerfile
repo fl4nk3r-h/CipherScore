@@ -6,12 +6,13 @@ FROM python:3.11-slim
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libgdk-pixbuf-2.0-0 \
+    libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libgdk-pixbuf-2.0-0 tcpdump \
  && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml ./
 COPY analyzer/ analyzer/
 COPY api/ api/
+COPY models/ models/
 COPY rules/ /rules/
 COPY lab/profiles/ lab/profiles/
 
