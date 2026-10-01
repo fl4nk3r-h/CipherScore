@@ -14,9 +14,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from analyzer import config
 from analyzer.infer import loader
 from api import db
-from api.routers import analyses, captures, health, lab, live, reports
+from api.routers import analyses, captures, health, lab, live, reports, threats
 
-TASKS = ("mode", "pfs", "cipher", "traffic")
+TASKS = ("mode", "cipher", "integ", "pfs", "dh_group", "traffic",
+         "beaconing", "dga", "dns_tunneling", "encrypted_malware")
 
 
 @asynccontextmanager
@@ -38,7 +39,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     for router in (captures.router, analyses.router, reports.router,
-                   lab.router, live.router, health.router):
+                   lab.router, live.router, threats.router, health.router):
         app.include_router(router, prefix="/api/v1")
     return app
 
