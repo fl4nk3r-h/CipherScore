@@ -49,6 +49,7 @@ class IKESession:
     offered: list[Transform] = field(default_factory=list)     # initiator SA_INIT
     chosen: list[Transform] = field(default_factory=list)      # responder SA_INIT
     ke_size: int | None = None       # bytes; cross-checks the DH group
+    rekey_lengths: list[int] = field(default_factory=list)
     vendor_ids: list[bytes] = field(default_factory=list)
     nat_detection_seen: bool = False
     aggressive_mode: bool = False    # IKEv1: identity exposed in cleartext
@@ -101,6 +102,8 @@ def parse_ike_message(pkt: PacketRecord, sessions: dict[tuple, IKESession]) -> N
     sess = sessions.setdefault(key, IKESession(
         version=major, initiator=pkt.src, responder=pkt.dst))
     sess.exchanges.append(exchange)
+    if major == 2 and exchange == 36:
+        sess.rekey_lengths.append(length or len(payload))
 
     if major == 2 and exchange in (34, 35, 36, 37):
         pass  # valid IKEv2 exchange; transforms parsed below when SA payload present
