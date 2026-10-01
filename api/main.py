@@ -6,6 +6,7 @@ analysis logic: every router calls analyzer.pipeline or a repository.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -34,7 +35,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="CipherScope MVP API", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"],
+        allow_origins=os.environ.get("CS_CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3100,http://127.0.0.1:3100").split(","),
         allow_methods=["*"],
         allow_headers=["*"],
     )
