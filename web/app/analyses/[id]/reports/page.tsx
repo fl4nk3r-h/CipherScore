@@ -173,7 +173,7 @@ export default function Reports({ params }: { params: Promise<{ id: string }> })
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded border border-slate-800 bg-slate-950/40 p-2 text-center">
       <div className="text-xs text-slate-500">{label}</div>
