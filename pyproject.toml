@@ -17,7 +17,7 @@ dependencies = [
     "pandas",
     "pyarrow",
     "lightgbm",
-    "scikit-learn",
+    "scikit-learn>=1.6",
     "joblib",
     "pyyaml",
     "jinja2",
@@ -36,7 +36,7 @@ dev = [
 [tool.setuptools]
 # Explicit discovery: the repo root hosts several top-level dirs (analyzer, api,
 # lab, models, …) and only analyzer+api are importable Python packages.
-packages = ["analyzer", "api", "analyzer.features", "analyzer.infer",
+packages = ["analyzer", "api", "models", "analyzer.features", "analyzer.infer",
             "analyzer.parse", "analyzer.posture", "analyzer.report",
             "api.routers", "api.repositories"]
 
