@@ -14,6 +14,7 @@ import re
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from typing import Any
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -152,29 +153,47 @@ def _container_running(name: str) -> bool:
     return r.returncode == 0 and r.stdout.strip() == "true"
 
 
+def _capture_compose(*args: str) -> list[str]:
+    return ["docker", "compose", "-f", str(_REPO_ROOT / "docker-compose.yml"), *args]
+
+
+def _lab_compose(*args: str) -> list[str]:
+    return ["docker", "compose", "-f", str(_REPO_ROOT / "docker-compose.lab.yml"), *args]
+
+
 def ensure_stack(profile_id: str = "p01") -> None:
-    """Bring up the lab stack + capture sidecar if any piece is missing."""
-    missing = [n for n in _REQUIRED_CONTAINERS if not _container_running(n)]
-    if not missing:
+    """Bring up missing lab services and bind capture to the current gw-a."""
+    missing_lab = [name for name in _REQUIRED_CONTAINERS if name != "capture"
+                   and not _container_running(name)]
+    capture_running = _container_running("capture")
+    if not missing_lab and capture_running:
         return
+    missing = [*missing_lab, *([] if capture_running else ["capture"])]
     print(f"[lab] missing: {', '.join(missing)} — starting stack")
-    _sh(["docker", "compose", "-f", str(_REPO_ROOT / "docker-compose.lab.yml"),
-         "up", "-d"], env={**os.environ, "LAB_PROFILE": profile_id})
-    _sh(["docker", "compose", "-f", str(_REPO_ROOT / "docker-compose.yml"),
-         "up", "-d", "capture"])
+    if missing_lab:
+        # A running capture sidecar shares gw-a's namespace. Stop it before
+        # Compose may replace the gateway, then rebind it to the new ID.
+        if capture_running:
+            _sh(_capture_compose("stop", "capture"))
+        _sh(_lab_compose("up", "-d"),
+            env={**os.environ, "LAB_PROFILE": profile_id})
+    # Compose `start` reuses an old container:<gateway-id> namespace and fails
+    # after gw-a was recreated. Recreate the sidecar every time it is missing
+    # or the lab stack changed.
+    _sh(_capture_compose("up", "-d", "--force-recreate", "capture"))
 
 
 def activate_profile(profile_id: str) -> None:
-    """Recreate gateways and the tap sidecar with the selected profile."""
+    """Recreate gateways and rebind capture when the selected profile changes."""
     current = _sh(["docker", "inspect", "-f", "{{range .Config.Env}}{{println .}}{{end}}",
                    "gw-a"], check=False).stdout
     if f"LAB_PROFILE={profile_id}" in current:
         return
-    _sh(["docker", "compose", "-f", str(_REPO_ROOT / "docker-compose.lab.yml"),
-         "up", "-d", "--force-recreate", "gw-a", "gw-b"],
+    if _container_running("capture"):
+        _sh(_capture_compose("stop", "capture"))
+    _sh(_lab_compose("up", "-d", "--force-recreate", "gw-a", "gw-b"),
         env={**os.environ, "LAB_PROFILE": profile_id})
-    _sh(["docker", "compose", "-f", str(_REPO_ROOT / "docker-compose.yml"),
-         "up", "-d", "--force-recreate", "capture"])
+    _sh(_capture_compose("up", "-d", "--force-recreate", "capture"))
 
 
 def parse_duration(spec: str) -> int:
@@ -182,26 +201,63 @@ def parse_duration(spec: str) -> int:
 
 
 def run_sessions(profiles: list[dict[str, Any]], traffic: list[str] | None,
-                 out_root: str = "data/sessions", repetitions: int = 1) -> None:
+                 out_root: str = "data/sessions", repetitions: int = 1,
+                 on_progress: Callable[[dict[str, Any]], None] | None = None) -> dict[str, int]:
+    """Run selected sessions and publish durable progress after each step."""
+    tasks = []
+    for profile in profiles:
+        for traffic_type in (traffic or profile["traffic"]):
+            if traffic_type not in profile["traffic"]:
+                continue
+            for repetition in range(1, repetitions + 1):
+                session_id = f"{profile['id']}-{traffic_type}-{repetition:04d}"
+                manifest = _REPO_ROOT / out_root / session_id / "manifest.json"
+                tasks.append((profile, traffic_type, session_id, manifest))
+    total = len(tasks)
+    counts = {"total": total, "processed": 0, "completed": 0, "skipped": 0, "failed": 0}
+    # Traffic generators have a declared duration. Add setup/teardown time per
+    # uncaptured session; this remains an estimate, especially during Docker startup.
+    remaining = sum(parse_duration(profile["duration_per_traffic"]) + 45
+                    for profile, _, _, manifest in tasks if not manifest.exists())
+
+    def report(phase: str, current_session: str | None = None) -> None:
+        if on_progress:
+            on_progress({**counts, "status": "running", "phase": phase,
+                         "current_session": current_session,
+                         "eta_seconds": max(0, round(remaining))})
+
     lock_fd = _runner_lock()
     try:
+        report("Preparing Lab stack")
         ensure_stack(profiles[0]["id"] if profiles else "p01")
         for profile in profiles:
+            report(f"Configuring profile {profile['id']}")
             activate_profile(profile["id"])
-            wanted = traffic or profile["traffic"]
-            for tt in wanted:
-                if tt not in profile["traffic"]:
+            for task_profile, traffic_type, session_id, manifest in tasks:
+                if task_profile is not profile:
                     continue
-                for repetition in range(1, repetitions + 1):
-                    session_id = f"{profile['id']}-{tt}-{repetition:04d}"
-                    if (_REPO_ROOT / out_root / session_id / "manifest.json").exists():
-                        print(f"[lab] session {session_id} already valid; skipping")
-                        continue
-                    try:
-                        _run_one(profile, tt, out_root, session_id)
-                    except (subprocess.SubprocessError, OSError, ValueError) as e:
-                        print(f"[lab] session {session_id} failed, continuing: {e}",
-                              file=sys.stderr)
+                if manifest.exists():
+                    print(f"[lab] session {session_id} already valid; skipping", flush=True)
+                    counts["skipped"] += 1
+                    counts["processed"] += 1
+                    report(f"Skipped existing session {session_id}")
+                    continue
+                report(f"Capturing {session_id}", session_id)
+                try:
+                    _run_one(profile, traffic_type, out_root, session_id)
+                except (subprocess.SubprocessError, OSError, ValueError) as exc:
+                    print(f"[lab] session {session_id} failed, continuing: {exc}",
+                          file=sys.stderr, flush=True)
+                    counts["failed"] += 1
+                    if on_progress:
+                        on_progress({"last_error": f"{session_id}: {exc}"})
+                else:
+                    counts["completed"] += 1
+                counts["processed"] += 1
+                expected = parse_duration(profile["duration_per_traffic"]) + 45
+                remaining = max(0, remaining - expected)
+                report(f"Finished {session_id}")
+        return counts
     finally:
         fcntl.flock(lock_fd, fcntl.LOCK_UN)
         os.close(lock_fd)
