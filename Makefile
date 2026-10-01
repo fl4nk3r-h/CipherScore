@@ -5,7 +5,7 @@ PROFILES ?= all
 TRAFFIC ?= icmp,web
 PYTHON ?= uv run python
 
-.PHONY: setup lab-up lab-down lab-run lab-all dataset train eval up down analyze test e2e demo
+.PHONY: setup lab-up lab-down lab-run lab-all dataset train eval threat-train threat-benchmark up down analyze test e2e demo
 
 setup:            ## Install Python deps (uv sync), web deps (pnpm i), pull images
 	uv sync
@@ -24,14 +24,14 @@ lab-run:          ## Run selected profiles and capture labeled sessions
 lab-all:          ## Run lab/matrix.yaml (every profile x every traffic type x repetitions)
 	$(PYTHON) -m lab.runner run --matrix lab/matrix.yaml
 
-dataset:          ## Build Parquet features, labels.csv, and grouped splits
-	$(PYTHON) ml/build_dataset.py
+dataset:          ## Build verified IPsec SA/window Parquet and labels.csv
+	$(PYTHON) -m ml.build_dataset
 
-train:            ## Train and calibrate all models into models/
-	$(PYTHON) ml/train.py
+train:            ## Train and gate six IPsec models into models/
+	$(PYTHON) -m ml.train
 
-eval:             ## Metrics + figures + update model_card.md
-	$(PYTHON) ml/evaluate.py
+eval:             ## Summarize held-out metrics and update model_card.md
+	$(PYTHON) -m ml.evaluate
 
 up:               ## Start api + web + grafana + capture
 	docker compose -f docker-compose.yml up -d
@@ -43,8 +43,8 @@ analyze:          ## CLI analysis without the dashboard: make analyze PCAP=path
 	$(PYTHON) -m analyzer.cli $(PCAP) --out data/reports/
 
 test:             ## ruff + pytest (unit + integration)
-	ruff check .
-	pytest tests/unit tests/integration
+	$(PYTHON) -m ruff check analyzer api capture lab ml models tests scripts
+	$(PYTHON) -m pytest tests/unit tests/integration
 
 e2e:              ## Playwright dashboard test
 	cd web && pnpm e2e
@@ -54,3 +54,9 @@ demo:             ## Seed demo data and open the dashboard
 	docker compose -f docker-compose.yml up -d
 	@echo "Dashboard: http://localhost:3000"
 	@echo "Grafana SOC: http://localhost:3001 (admin / see GF_SECURITY_ADMIN_PASSWORD)"
+
+threat-train:     ## Train threat models from dataset/threats/*.parquet
+	$(PYTHON) -m ml.train_threats
+
+threat-benchmark: ## Measure passive threat processor throughput
+	$(PYTHON) -m scripts.benchmark_threats
