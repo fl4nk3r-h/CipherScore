@@ -1,6 +1,8 @@
 # CipherScope: Technical Documentation
 
-> **CipherScope** is an AI-powered IPsec VPN protocol analyzer and security assessment framework. It generates labeled IPsec traffic, captures it, infers protocol characteristics from encrypted traffic, rates the deployment's security posture, and produces Executive and Technical reports. Analysts never have to inspect packets by hand.
+> **Current implementation (2026-10-01):** IPsec analysis and passive threat PCAP replay are implemented; live threat ingest requires a configured mirror interface. Six IPsec and four learned threat heads are wired but have no promoted training artifacts. See the [run sequence](docs/RUN_SEQUENCE.md), [API reference](docs/api.md), and [training status](docs/threat_training.md). The architecture material below also describes planned capabilities.
+
+> **CipherScope** is an IPsec protocol analyzer and security assessment framework with a separate passive threat workflow. The lab generates labeled traffic, and the analyzer reports observable evidence, rule-based assessments, and model predictions when trained artifacts are available.
 
 This folder is the engineering source of truth for the proposed system. The slide deck in `app/` summarizes the idea. These documents give the detail needed to build it.
 
@@ -46,7 +48,7 @@ This folder is the engineering source of truth for the proposed system. The slid
 
 ## 3. Scope of this repository
 
-This repository currently holds the **ideation deck** (Next.js). The system in these documents is **proposed and not yet implemented**. Code paths such as `services/api/...` refer to the target monorepo layout defined in [REPO_STRUCTURE.md](.docs/REPO_STRUCTURE.md).
+This repository now contains a working IPsec analysis service, strongSwan lab, and a passive threat replay/mirror workflow. The machine-learning registries are still untrained pending sufficient valid, independently split data. See [threat detection and training](docs/threat_training.md) for collection, model gates, API controls, and current verification limits. The `.docs/` design documents describe broader target architecture and may contain proposed paths.
 
 ## 4. Two-person team split (equal burden)
 
