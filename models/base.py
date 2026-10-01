@@ -41,7 +41,7 @@ class Prediction(BaseModel):
     source: Source
     confidence: float                    # 0..1, conformal-derived
     prediction_set: list[str] = Field(default_factory=list)   # conformal set at alpha
-    alpha: float = 0.05
+    alpha: float = 0.1
     model_version: str | None = None
     explanation: list[FeatureAttribution] = Field(default_factory=list)   # top-k SHAP
 
@@ -83,17 +83,9 @@ def resolve_version(models_dir: str | Path, task: str) -> str | None:
 
 
 def conformal_set(proba: list[float], qhat: float) -> list[int]:
-    """APS-style split-conformal set (LLD §6.3): classes in descending
-    probability until their cumulative mass reaches ``1 - qhat``."""
-    order = sorted(range(len(proba)), key=lambda i: proba[i], reverse=True)
-    chosen: list[int] = []
-    total = 0.0
-    for idx in order:
-        chosen.append(idx)
-        total += float(proba[idx])
-        if total >= 1.0 - float(qhat):
-            break
-    return chosen
+    """Split-conformal set for nonconformity score ``1 - p(true)``."""
+    chosen = [i for i, p in enumerate(proba) if float(p) >= 1.0 - float(qhat)]
+    return chosen or [max(range(len(proba)), key=lambda i: proba[i])]
 
 
 def conformal_confidence(top_p: float, set_size: int) -> float:
@@ -115,7 +107,7 @@ class HeadModel:
     task: str
     classes: ClassVar[list[Any]] = []
     source: Source = "inferred"
-    alpha: float = 0.05
+    alpha: float = 0.1
     top_k_explanations: int = 10
 
     def __init__(self, models_dir: str | Path | None = None,
@@ -210,10 +202,14 @@ class HeadModel:
         return [float(value) for value in features.values()]
 
     def _proba(self, features: dict[str, float]) -> list[float] | None:
-        if self._model is None:
+        if self._model is None or (self._feature_order and
+                                   not all(k in features for k in self._feature_order)):
             return None
         try:
-            proba = self._model.predict_proba([self._vector(features)])[0]
+            import pandas as pd
+            columns = self._feature_order or list(features)
+            row = pd.DataFrame([self._vector(features)], columns=columns)
+            proba = self._model.predict_proba(row)[0]
         except (AttributeError, TypeError, ValueError):
             return None
         return [float(p) for p in proba]
@@ -290,7 +286,8 @@ class HeadModel:
                 for name, importance in pairs[:k]]
 
     def _shap_explanation(self, features: dict[str, float]) -> list[FeatureAttribution] | None:
-        if self._model is None:
+        if self._model is None or (self._feature_order and
+                                   not all(k in features for k in self._feature_order)):
             return None
         try:
             import numpy as np
