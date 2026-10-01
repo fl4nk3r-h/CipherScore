@@ -41,7 +41,7 @@ function Slot({ children, className, ...rest }: {
 } & Record<string, unknown>) {
   const child = React.Children.only(children) as React.ReactElement<Record<string, unknown>>;
   return React.cloneElement(child, {
-    className: cn(className, child.props.className),
+    className: cn(className, child.props.className as string | undefined),
     ...rest,
   });
 }
