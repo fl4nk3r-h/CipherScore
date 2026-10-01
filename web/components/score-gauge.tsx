@@ -12,10 +12,10 @@ export function ScoreGauge({ score, grade }: { score: number | null; grade: stri
       <div className="text-5xl font-black" style={{ color }}>
         {score ?? "—"}
       </div>
-      <div className="mt-1 text-sm text-slate-400">
+      <div className="mt-1 text-sm text-zinc-400">
         Security Score {grade ? `· grade ${grade}` : ""}
       </div>
-      <div className="mt-3 h-2 w-full rounded bg-slate-800">
+      <div className="mt-3 h-2 w-full rounded bg-zinc-800">
         <div
           className="h-2 rounded transition-all"
           style={{ width: `${score ?? 0}%`, background: color }}
