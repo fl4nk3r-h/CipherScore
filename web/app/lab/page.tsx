@@ -1,7 +1,7 @@
 "use client";
 // Screen 8 — Lab (mvp.md §4): profile matrix, run a profile, session list with
 // ground-truth vs predicted comparison (accuracy proof, §10 step 6).
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { api } from "@/lib/api";
@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ErrorState, EmptyState, CardSkeletons } from "@/components/states";
-import type { LabProfile, LabSession, SessionAccuracy } from "@/lib/types";
+import type { LabProfile, LabRunStatus, LabSession, SessionAccuracy } from "@/lib/types";
 
 const FIELD_LABELS: Record<string, string> = {
   ike_version: "IKE version",
@@ -35,6 +35,13 @@ const FIELD_LABELS: Record<string, string> = {
 const DEFAULT_PROFILES = ["p03", "p07"];
 const DEFAULT_TRAFFIC = ["voip", "web"];
 
+function formatDuration(seconds: number | null): string {
+  if (seconds == null) return "Calculating…";
+  if (seconds < 60) return "less than 1 min";
+  const minutes = Math.ceil(seconds / 60);
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
+}
+
 function fmt(value: string | number | boolean | null | undefined): string {
   if (value == null) return "—";
   return String(value);
@@ -49,28 +56,30 @@ function statusVariant(status: string): "success" | "default" | "secondary" | "d
 
 export default function Lab() {
   const { data: profiles, error: profilesError, mutate: reloadProfiles } = useSWR<LabProfile[]>(
-    "/lab/profiles", api.fetcher);
+    "/lab/profiles", api.fetchArray);
   const { data: sessions, error: sessionsError, mutate: reloadSessions } = useSWR<LabSession[]>(
-    "/lab/sessions", api.fetcher, {
-      refreshInterval: (current) =>
-        (current ?? []).some((s) =>
-          s.accuracy && (s.accuracy.status === "queued" || s.accuracy.status === "running"))
-          ? 2000
-          : 0,
-    });
+    "/lab/sessions", api.fetchArray, { refreshInterval: 5000 });
+
+  const { data: run, error: runStatusError, mutate: reloadRun } = useSWR<LabRunStatus | null>(
+    "/lab/runs/current", api.fetcher, { refreshInterval: 2000 });
 
   const [selected, setSelected] = useState<string[]>(DEFAULT_PROFILES);
-  const [running, setRunning] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [analyzing, setAnalyzing] = useState<Set<string>>(new Set());
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
 
-  const sessionList = sessions ?? [];
-  const profileList = profiles ?? [];
+  const sessionList = Array.isArray(sessions) ? sessions : [];
+  const profileList = Array.isArray(profiles) ? profiles : [];
+
+  const runActive = run?.status === "queued" || run?.status === "running";
+  useEffect(() => {
+    if (run && !runActive) void reloadSessions();
+  }, [run?.run_id, run?.status, runActive, reloadSessions]);
 
   const accuracy = useMemo(() => {
-    const accs = sessionList.map((s) => s.accuracy).filter((a): a is SessionAccuracy => a != null);
+    const accs = sessionList.map((s) => s.accuracy).filter((a): a is SessionAccuracy => a?.status === "completed" && a.compared > 0);
     const fields: Record<string, { hit: number; seen: number }> = {};
     let totalMatched = 0;
     let totalCompared = 0;
@@ -90,16 +99,17 @@ export default function Lab() {
 
   async function runSelected() {
     setRunError(null);
-    setRunning(true);
+    setStarting(true);
     try {
-      await api.post("/lab/runs", {
+      await api.post<LabRunStatus>("/lab/runs", {
         profile_ids: selected,
         traffic_types: DEFAULT_TRAFFIC,
       });
+      await reloadRun();
     } catch (cause) {
       setRunError(cause instanceof Error ? cause.message : "could not start lab run");
     } finally {
-      setRunning(false);
+      setStarting(false);
     }
   }
 
@@ -128,19 +138,19 @@ export default function Lab() {
       return next;
     });
 
-  const sessionError = sessionsError ?? profilesError;
+  const sessionError = sessionsError ?? profilesError ?? runStatusError;
   const loading = (!sessions && !sessionsError) || (!profiles && !profilesError);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Lab</h1>
+    <div className="mx-auto max-w-[1400px] space-y-5">
+      <h1 className="text-xl font-semibold tracking-tight text-zinc-50">Lab</h1>
 
       {(sessionError || runError || analyzeError) && (
         <div role="alert" className="space-y-2">
           {sessionError && (
-            <ErrorState message={`Could not load lab data: ${sessionError.message}`} onRetry={reloadSessions} />
+            <ErrorState message={`Could not load lab data: ${sessionError.message}`} onRetry={() => { reloadSessions(); reloadProfiles(); reloadRun(); }} />
           )}
-          {runError && <ErrorState message={`Run failed: ${runError}`} />}
+          {runError && <ErrorState message={`Could not start Lab run: ${runError}`} />}
           {analyzeError && <ErrorState message={`Analysis failed: ${analyzeError}`} />}
         </div>
       )}
@@ -170,7 +180,7 @@ export default function Lab() {
             {profileList.map((p) => (
               <label
                 key={p.id}
-                className="flex items-center gap-2 rounded border border-slate-800 p-2 text-xs hover:border-slate-600"
+                className="flex items-center gap-2 rounded border border-zinc-800 p-2 text-xs hover:border-zinc-600"
               >
                 <input
                   type="checkbox"
@@ -183,21 +193,51 @@ export default function Lab() {
                 />
                 <span>
                   <b>{p.id}</b> {p.spec?.mode}/{p.spec?.ip_family}
-                  <span className="text-slate-500"> {p.spec?.esp_proposal}</span>
+                  <span className="text-zinc-500"> {p.spec?.esp_proposal}</span>
                 </span>
               </label>
             ))}
           </div>
           <Button
             className="mt-3"
-            disabled={running || selected.length === 0}
-            aria-busy={running}
+            disabled={starting || runActive || selected.length === 0}
+            aria-busy={starting || runActive}
             onClick={runSelected}
           >
-            {running ? "Starting run…" : `Run selected (${DEFAULT_TRAFFIC.join(" + ")})`}
+            {starting ? "Starting run…" : runActive ? "Lab run in progress" : `Run selected (${DEFAULT_TRAFFIC.join(" + ")})`}
           </Button>
         </CardContent>
       </Card>
+
+      {run && (
+        <Card role="status" aria-live="polite">
+          <CardHeader className="flex-row items-center justify-between gap-3">
+            <div>
+              <CardTitle>Lab run</CardTitle>
+              <CardDescription>{run.phase || "Preparing run"}</CardDescription>
+            </div>
+            <Badge variant={run.status === "completed" ? "success" : run.status === "failed" ? "destructive" : "secondary"}>
+              {run.status}
+            </Badge>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="font-mono text-zinc-200">{run.current_session || run.run_id}</span>
+              {runActive && <span className="text-cyan-300">ETA approx. {formatDuration(run.eta_seconds)}</span>}
+            </div>
+            {run.total > 0 && (
+              <>
+                <Progress value={(run.processed / run.total) * 100} aria-label="Lab run progress" tone="cyan" />
+                <p className="text-xs text-zinc-400">
+                  {run.processed} of {run.total} sessions processed · {run.completed} captured · {run.skipped} already valid
+                  {run.failed > 0 ? ` · ${run.failed} failed` : ""}
+                </p>
+              </>
+            )}
+            {(run.error || run.last_error) && <p className="text-xs text-red-300">{run.error || run.last_error}</p>}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -206,9 +246,9 @@ export default function Lab() {
         </CardHeader>
         <CardContent>
           {accuracy.analyzed ? (
-            <div className="space-y-1 text-xs text-slate-400">
+            <div className="space-y-1 text-xs text-zinc-400">
               <div className="flex justify-between">
-                <span>{accuracy.analyzed} of {sessionList.length} sessions analyzed</span>
+                <span>{accuracy.analyzed} of {sessionList.length} sessions with comparable fields</span>
                 <span>
                   {accuracy.totalMatched}/{accuracy.totalCompared} fields match
                   ({accuracy.rate != null ? `${(accuracy.rate * 100).toFixed(1)}%` : "—"})
@@ -225,11 +265,11 @@ export default function Lab() {
                   {Object.entries(accuracy.fields)
                     .sort(([a], [b]) => a.localeCompare(b))
                     .map(([field, { hit, seen }]) => (
-                      <tr key={field} className="border-t border-slate-800">
+                      <tr key={field} className="border-t border-zinc-800">
                         <td className="py-1 capitalize">{FIELD_LABELS[field] ?? field}</td>
                         <td className="text-right">
                           <span className="text-emerald-300">{hit}</span>
-                          <span className="text-slate-500">/{seen}</span>
+                          <span className="text-zinc-500">/{seen}</span>
                         </td>
                         <td className="w-32">
                           <Progress
@@ -244,7 +284,7 @@ export default function Lab() {
               </table>
             </div>
           ) : (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-zinc-500">
               {sessionList.length
                 ? "No sessions have been analyzed yet."
                 : "No lab sessions yet — run a profile above."}
@@ -342,7 +382,7 @@ function FragmentRow({
             aria-expanded={open}
             aria-controls={`detail-${session.session_id}`}
             aria-label={`Field comparison for ${session.session_id}`}
-            className="h-6 w-6 text-slate-400"
+            className="h-6 w-6 text-zinc-400"
           >
             {open ? "▾" : "▸"}
           </Button>
@@ -354,7 +394,7 @@ function FragmentRow({
           {predicted ? (
             <span className="capitalize">{predicted}</span>
           ) : acc ? (
-            <span className="text-slate-500">not predicted</span>
+            <span className="text-zinc-500">not predicted</span>
           ) : (
             "—"
           )}
@@ -364,14 +404,16 @@ function FragmentRow({
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold">{(rate * 100).toFixed(0)}%</span>
               <Progress value={rate * 100} className="w-24" tone="emerald" />
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-zinc-500">
                 {acc?.matched}/{acc?.compared}
               </span>
             </div>
+          ) : acc?.status === "completed" ? (
+            <span className="text-xs text-zinc-500">no comparable fields</span>
           ) : acc ? (
             <Badge variant={statusVariant(acc.status)}>{acc.status}</Badge>
           ) : (
-            <span className="text-slate-600">not analyzed</span>
+            <span className="text-zinc-600">not analyzed</span>
           )}
         </TableCell>
         <TableCell className="text-right">
@@ -392,7 +434,7 @@ function FragmentRow({
       </TableRow>
       {open && (
         <TableRow id={`detail-${session.session_id}`}>
-          <TableCell colSpan={7} className="bg-slate-950/40 p-3">
+          <TableCell colSpan={7} className="bg-zinc-950/40 p-3">
             <FieldComparison session={session} />
           </TableCell>
         </TableRow>
@@ -413,21 +455,21 @@ function FieldComparison({ session }: { session: LabSession }) {
         const predicted = acc?.predicted?.[field];
         const match = acc?.match?.[field];
         return (
-          <div key={field} className="flex items-center justify-between gap-2 border-b border-slate-800/60 py-1 text-xs">
-            <span className="text-slate-400">{FIELD_LABELS[field]}</span>
+          <div key={field} className="flex items-center justify-between gap-2 border-b border-zinc-800/60 py-1 text-xs">
+            <span className="text-zinc-400">{FIELD_LABELS[field]}</span>
             <span className="flex items-center gap-2 font-mono">
               <span title="Ground truth">
-                <span className="text-slate-500">GT&nbsp;</span>{fmt(expected)}
+                <span className="text-zinc-500">GT&nbsp;</span>{fmt(expected)}
               </span>
-              <span className="text-slate-600">→</span>
+              <span className="text-zinc-600">→</span>
               <span title="Predicted">
-                <span className="text-slate-500">AI&nbsp;</span>
-                <span className={match === false ? "text-red-300" : "text-slate-100"}>
+                <span className="text-zinc-500">AI&nbsp;</span>
+                <span className={match === false ? "text-red-300" : "text-zinc-100"}>
                   {fmt(predicted)}
                 </span>
               </span>
               {match == null ? (
-                <Badge variant="outline" className="text-slate-500">n/a</Badge>
+                <Badge variant="outline" className="text-zinc-500">n/a</Badge>
               ) : match ? (
                 <Badge variant="success">match</Badge>
               ) : (

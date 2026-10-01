@@ -66,3 +66,16 @@ CREATE TABLE IF NOT EXISTS lab_session (
 CREATE INDEX IF NOT EXISTS idx_analysis_capture ON analysis(capture_id);
 CREATE INDEX IF NOT EXISTS idx_sa_analysis ON sa(analysis_id);
 CREATE INDEX IF NOT EXISTS idx_finding_analysis ON finding(analysis_id);
+
+CREATE TABLE IF NOT EXISTS threat_alert (
+  id TEXT PRIMARY KEY,
+  timestamp REAL NOT NULL,
+  flow_id TEXT NOT NULL,
+  threat_class TEXT NOT NULL,
+  severity TEXT NOT NULL,
+  confidence REAL NOT NULL,
+  evidence TEXT NOT NULL,
+  source TEXT NOT NULL,
+  model_version TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_threat_alert_time ON threat_alert(timestamp DESC);

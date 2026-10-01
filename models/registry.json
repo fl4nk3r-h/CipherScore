@@ -1,6 +1,12 @@
 {
-  "traffic": null,
   "mode": null,
+  "cipher": null,
+  "integ": null,
   "pfs": null,
-  "cipher": null
+  "dh_group": null,
+  "traffic": null,
+  "beaconing": null,
+  "dga": null,
+  "dns_tunneling": null,
+  "encrypted_malware": null
 }

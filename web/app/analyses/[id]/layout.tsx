@@ -1,12 +1,4 @@
-import Link from "next/link";
-
-const TABS = [
-  { seg: "", label: "Summary" },
-  { seg: "sas", label: "SAs" },
-  { seg: "traffic", label: "Traffic" },
-  { seg: "findings", label: "Findings" },
-  { seg: "reports", label: "Reports" },
-];
+import { AnalysisTabs } from "@/components/analysis-tabs";
 
 export default async function AnalysisLayout({
   children,
@@ -17,19 +9,12 @@ export default async function AnalysisLayout({
 }) {
   const { id } = await params;
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Analysis {id}</h1>
-      <div className="flex gap-3 text-sm">
-        {TABS.map((t) => (
-          <Link
-            key={t.seg}
-            href={`/analyses/${id}${t.seg ? `/${t.seg}` : ""}`}
-            className="rounded border border-slate-700 px-3 py-1 hover:border-cyan-500 hover:text-cyan-300"
-          >
-            {t.label}
-          </Link>
-        ))}
-      </div>
+    <div className="mx-auto max-w-[1400px] space-y-5">
+      <header>
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-50">Analysis <span className="font-mono text-cyan-300">{id}</span></h1>
+        <p className="mt-1 text-[13px] text-zinc-500">Inspect posture, traffic, findings, and reports for this capture.</p>
+      </header>
+      <AnalysisTabs id={id} />
       {children}
     </div>
   );

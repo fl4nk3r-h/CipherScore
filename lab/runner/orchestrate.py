@@ -10,6 +10,7 @@ import fcntl
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import time
@@ -41,10 +42,10 @@ SERVER_BY_FAMILY = {"ipv4": "10.2.0.10", "ipv6": "fd02::10"}
 
 
 def _sh(cmd: list[str], check: bool = True,
-        timeout: int = DOCKER_TIMEOUT_S) -> subprocess.CompletedProcess:
+        timeout: int = DOCKER_TIMEOUT_S, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     try:
         return subprocess.run(cmd, check=check, text=True, capture_output=True,
-                              timeout=timeout)
+                              timeout=timeout, env=env)
     except subprocess.TimeoutExpired:
         print(f"[lab] command timed out after {timeout}s: {' '.join(cmd)}",
               file=sys.stderr)
@@ -73,7 +74,7 @@ def _runner_lock() -> int:
 
 
 def _write_manifest(session_id: str, profile: dict[str, Any],
-                    traffic_type: str, out_root: str) -> pathlib.Path | None:
+                    traffic_type: str, out_root: str, sa_state: str = "") -> pathlib.Path | None:
     """Write manifest.json from the sidecar's recorded start/end (mvp.md §3.2).
 
     GET /lab/sessions, the analysis API (lab_session_id resolution) and the
@@ -88,6 +89,16 @@ def _write_manifest(session_id: str, profile: dict[str, Any],
         return None
     started = session_dir / "started_at"
     ended = session_dir / "ended_at"
+    esp = profile["esp_proposal"].lower()
+    cipher = "AES-GCM-16" if "gcm" in esp else "AES-CBC" if "cbc" in esp else "AH"
+    match = re.search(r"aes(128|256)", esp)
+    dh_names = {"modp1024": 2, "modp2048": 14, "modp3072": 15,
+                "modp4096": 16, "ecp256": 19, "ecp384": 20, "ecp521": 21,
+                "curve25519": 31}
+    dh_group = next((group for name, group in dh_names.items()
+                     if name in profile["ike_proposal"]), None)
+    integ = ("AEAD" if "gcm" in esp else next(
+        (token for token in esp.split("-") if token.startswith("sha")), "unknown"))
     manifest = {
         "session_id": session_id,
         "profile": profile["id"],
@@ -105,10 +116,17 @@ def _write_manifest(session_id: str, profile: dict[str, Any],
             "ike_proposal": profile["ike_proposal"],
             "esp_proposal": profile["esp_proposal"],
             "pfs": profile["pfs"],
+            "enc": cipher,
+            "key_bits": int(match.group(1)) if match else None,
+            "integ": integ,
+            "dh_group": dh_group,
+            "child_rekey_s": parse_duration(profile["child_rekey_time"]),
+            "replay_window": profile["replay_window"],
             "traffic_type": traffic_type,
         },
         "pcap": f"{session_id}.pcapng",
         "keys": f"{session_id}.keys/",
+        "sa_state": sa_state,
     }
     path = session_dir / "manifest.json"
     try:
@@ -124,26 +142,39 @@ def _write_manifest_via_container(session_id: str, payload: str) -> None:
     subprocess.run(
         ["docker", "exec", "-i", "capture", "/bin/sh", "-c",
          f"cat > /sessions/{session_id}/manifest.json"],
-        input=payload, text=True, capture_output=True, check=False,
+        input=payload, text=True, capture_output=True, check=True,
     )
 
 
 def _container_running(name: str) -> bool:
     r = subprocess.run(["docker", "inspect", "-f", "{{.State.Running}}", name],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, check=False)
     return r.returncode == 0 and r.stdout.strip() == "true"
 
 
-def ensure_stack() -> None:
+def ensure_stack(profile_id: str = "p01") -> None:
     """Bring up the lab stack + capture sidecar if any piece is missing."""
     missing = [n for n in _REQUIRED_CONTAINERS if not _container_running(n)]
     if not missing:
         return
     print(f"[lab] missing: {', '.join(missing)} — starting stack")
     _sh(["docker", "compose", "-f", str(_REPO_ROOT / "docker-compose.lab.yml"),
-         "up", "-d"])
+         "up", "-d"], env={**os.environ, "LAB_PROFILE": profile_id})
     _sh(["docker", "compose", "-f", str(_REPO_ROOT / "docker-compose.yml"),
          "up", "-d", "capture"])
+
+
+def activate_profile(profile_id: str) -> None:
+    """Recreate gateways and the tap sidecar with the selected profile."""
+    current = _sh(["docker", "inspect", "-f", "{{range .Config.Env}}{{println .}}{{end}}",
+                   "gw-a"], check=False).stdout
+    if f"LAB_PROFILE={profile_id}" in current:
+        return
+    _sh(["docker", "compose", "-f", str(_REPO_ROOT / "docker-compose.lab.yml"),
+         "up", "-d", "--force-recreate", "gw-a", "gw-b"],
+        env={**os.environ, "LAB_PROFILE": profile_id})
+    _sh(["docker", "compose", "-f", str(_REPO_ROOT / "docker-compose.yml"),
+         "up", "-d", "--force-recreate", "capture"])
 
 
 def parse_duration(spec: str) -> int:
@@ -151,52 +182,85 @@ def parse_duration(spec: str) -> int:
 
 
 def run_sessions(profiles: list[dict[str, Any]], traffic: list[str] | None,
-                 out_root: str = "data/sessions") -> None:
+                 out_root: str = "data/sessions", repetitions: int = 1) -> None:
     lock_fd = _runner_lock()
     try:
-        ensure_stack()
+        ensure_stack(profiles[0]["id"] if profiles else "p01")
         for profile in profiles:
+            activate_profile(profile["id"])
             wanted = traffic or profile["traffic"]
             for tt in wanted:
                 if tt not in profile["traffic"]:
                     continue
-                # One failing session must not abort the whole sweep.
-                try:
-                    _run_one(profile, tt, out_root)
-                except (subprocess.SubprocessError, OSError) as e:
-                    print(f"[lab] session {profile['id']}-{tt}-0001 failed, "
-                          f"continuing: {e}", file=sys.stderr)
+                for repetition in range(1, repetitions + 1):
+                    session_id = f"{profile['id']}-{tt}-{repetition:04d}"
+                    if (_REPO_ROOT / out_root / session_id / "manifest.json").exists():
+                        print(f"[lab] session {session_id} already valid; skipping")
+                        continue
+                    try:
+                        _run_one(profile, tt, out_root, session_id)
+                    except (subprocess.SubprocessError, OSError, ValueError) as e:
+                        print(f"[lab] session {session_id} failed, continuing: {e}",
+                              file=sys.stderr)
     finally:
         fcntl.flock(lock_fd, fcntl.LOCK_UN)
         os.close(lock_fd)
 
 
-def _run_one(profile: dict[str, Any], tt: str, out_root: str) -> None:
-    session_id = f"{profile['id']}-{tt}-0001"
-    # Pre-create as the invoking user so manifest cleanup/writes work
-    # without root (the capture sidecar writes as root inside it).
-    (_REPO_ROOT / out_root / session_id).mkdir(parents=True, exist_ok=True)
-    print(f"[lab] session {session_id}: initiating SA…")
-    # --child is explicit: start_action=start alone has proven unreliable
-    # on this image, and without a CHILD_SA the capture is plaintext.
-    _sh(["docker", "exec", "gw-a", "swanctl", "--initiate",
-         "--child", f"{profile['id']}-child", "--ike", profile["id"],
-         "--timeout", str(SWANCTL_TIMEOUT_S)], check=False)
-    print(f"[lab] session {session_id}: SA up")
-    _sh(["docker", "exec", "capture", "python3", "/app/capture.py",
-         "start", session_id])
-    dur = parse_duration(profile["duration_per_traffic"])
-    cmd = [c.format(server=SERVER_BY_FAMILY[profile["ip_family"]],
-                    dur=dur) for c in GENERATOR_CMD[tt]]
-    # Generators run with check=False, so surface their stderr — a crashing
-    # generator otherwise leaves an empty capture with no clue why.
-    r = _sh(["docker", "exec", "client-a", *cmd], check=False)
-    if r.returncode != 0 and (r.stderr or "").strip():
-        print(f"[lab] {tt} generator exited {r.returncode}: "
-              f"{r.stderr.strip()[:400]}", file=sys.stderr)
-    _sh(["docker", "exec", "capture", "python3", "/app/capture.py",
-         "stop", session_id])
-    _write_manifest(session_id, profile, tt, out_root)
-    print(f"[lab] session {session_id}: capture stopped, manifest written")
-    _sh(["docker", "exec", "gw-a", "swanctl", "--terminate", "--ike",
-         profile["id"], "--timeout", str(SWANCTL_TIMEOUT_S)], check=False)
+def _run_one(profile: dict[str, Any], tt: str, out_root: str, session_id: str) -> None:
+    session_dir = _REPO_ROOT / out_root / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+    _sh(["docker", "exec", "capture", "python3", "/app/capture.py", "start", session_id])
+    sa_state = ""
+    try:
+        if profile["ike_version"] == 1:
+            initiation = _sh(["docker", "exec", "gw-a", "ipsec", "up", profile["id"]],
+                             check=False)
+        else:
+            initiation = _sh(["docker", "exec", "gw-a", "swanctl", "--initiate",
+                              "--child", f"{profile['id']}-child", "--ike", profile["id"],
+                              "--timeout", str(SWANCTL_TIMEOUT_S)], check=False)
+        if initiation.returncode != 0:
+            raise ValueError(f"SA initiation failed: {initiation.stderr[:200]}")
+        dur = parse_duration(profile["duration_per_traffic"])
+        cmd = [c.format(server=SERVER_BY_FAMILY[profile["ip_family"]], dur=dur)
+               for c in GENERATOR_CMD[tt]]
+        traffic_result = _sh(["docker", "exec", "client-a", *cmd], check=False)
+        if traffic_result.returncode != 0:
+            raise ValueError(f"{tt} generator failed: {traffic_result.stderr[:200]}")
+        if profile["ike_version"] == 2:
+            sa_state = _sh(["docker", "exec", "gw-a", "swanctl", "--list-sas"],
+                           check=False).stdout
+            rekey = _sh(["docker", "exec", "gw-a", "swanctl", "--rekey", "--child",
+                         f"{profile['id']}-child"], check=False)
+            if rekey.returncode != 0:
+                raise ValueError(f"CHILD_SA rekey failed: {rekey.stderr[:200]}")
+        else:
+            sa_state = _sh(["docker", "exec", "gw-a", "ipsec", "statusall"],
+                           check=False).stdout
+        _sh(["docker", "exec", "client-a", "bash", "/traffic/icmp.sh",
+             SERVER_BY_FAMILY[profile["ip_family"]], "5"], check=False)
+    finally:
+        _sh(["docker", "exec", "capture", "python3", "/app/capture.py", "stop",
+             session_id], check=False)
+        if profile["ike_version"] == 1:
+            _sh(["docker", "exec", "gw-a", "ipsec", "down", profile["id"]], check=False)
+        else:
+            _sh(["docker", "exec", "gw-a", "swanctl", "--terminate", "--ike",
+                 profile["id"], "--timeout", str(SWANCTL_TIMEOUT_S)], check=False)
+    from analyzer.parse import demux, reader
+    capture = session_dir / f"{session_id}.pcapng"
+    buckets = demux.classify(reader.stream(capture))
+    esp_count = len(buckets[demux.ProtocolClass.ESP]) + len(buckets[demux.ProtocolClass.ESP_IN_UDP])
+    ah_count = len(buckets[demux.ProtocolClass.AH])
+    protected = ah_count if profile["esp_proposal"].startswith("ah-") else esp_count
+    expected_mode = profile["mode"].upper()
+    expected_cipher = "AES_GCM" if "gcm" in profile["esp_proposal"] else "AES_CBC"
+    state_matches = (profile["id"] in sa_state and expected_mode in sa_state.upper()
+                     and (expected_cipher in sa_state.upper() or
+                          profile["esp_proposal"].startswith("ah-")))
+    if protected < 20 or not buckets[demux.ProtocolClass.IKE] or not state_matches:
+        raise ValueError(f"invalid capture: {esp_count} ESP, {ah_count} AH, "
+                         f"{len(buckets[demux.ProtocolClass.IKE])} IKE packets")
+    _write_manifest(session_id, profile, tt, out_root, sa_state)
+    print(f"[lab] valid session {session_id}: {protected} protected packets")

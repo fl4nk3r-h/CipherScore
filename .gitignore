@@ -33,3 +33,8 @@ lab/**/*.swp
 
 # OS
 .DS_Store
+
+# Rebuilt local training outputs
+dataset/labels.csv
+dataset/provenance.json
+dataset/rejected.json

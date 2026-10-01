@@ -7,7 +7,7 @@ export const metadata = { title: "CipherScope SOC — IPsec VPN Security Operati
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-[#04070e] text-slate-200 antialiased">
+      <body className="min-h-screen bg-zinc-950 text-zinc-200 antialiased">
         <SocChrome>{children}</SocChrome>
       </body>
     </html>

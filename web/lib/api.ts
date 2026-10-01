@@ -1,6 +1,12 @@
 // Typed fetchers for the API (repo.md §8 lib/api.ts).
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
+async function responseError(res: Response, path: string): Promise<Error> {
+  const body = await res.json().catch(() => null);
+  const detail = body && typeof body.detail === "string" ? body.detail : res.statusText;
+  return new Error(`${res.status} ${path}${detail ? `: ${detail}` : ""}`);
+}
+
 export const api = {
   url(path: string): string {
     return `${BASE}${path}`;
@@ -8,8 +14,14 @@ export const api = {
 
   async fetcher<T>(path: string): Promise<T> {
     const res = await fetch(api.url(path));
-    if (!res.ok) throw new Error(`${res.status} ${path}`);
+    if (!res.ok) throw await responseError(res, path);
     return res.json();
+  },
+
+  async fetchArray<T>(path: string): Promise<T[]> {
+    const data: unknown = await api.fetcher(path);
+    if (!Array.isArray(data)) throw new Error(`Invalid response from ${path}: expected an array`);
+    return data as T[];
   },
 
   async post<T>(path: string, body: unknown): Promise<T> {
@@ -18,7 +30,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`${res.status} ${path}`);
+    if (!res.ok) throw await responseError(res, path);
     return res.json();
   },
 
@@ -36,7 +48,7 @@ export const api = {
     const form = new FormData();
     form.append("file", file);
     const res = await fetch(api.url("/captures"), { method: "POST", body: form });
-    if (!res.ok) throw new Error(`upload failed: ${res.status}`);
+    if (!res.ok) throw await responseError(res, "/captures");
     return res.json();
   },
 };

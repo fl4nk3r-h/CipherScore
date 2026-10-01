@@ -3,7 +3,7 @@
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export function HistogramChart({ values, bins = 20 }: { values: number[]; bins?: number }) {
-  if (!values.length) return <p className="text-sm text-slate-500">No numeric data.</p>;
+  if (!values.length) return <p className="text-sm text-zinc-500">No numeric data.</p>;
   const min = Math.min(...values), max = Math.max(...values);
   const width = (max - min) / bins || 1;
   const counts = new Array(bins).fill(0);

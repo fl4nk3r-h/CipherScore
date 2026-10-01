@@ -78,10 +78,11 @@ def run_analysis(pcap_path: Path, rule_pack: str = config.DEFAULT_RULE_PACK,
         struct = structures.get(spi, esp_structure.StructureResult(
             cipher_mode=None, icv_len=None, consistency=0.0))
         offsets = offsets_by_spi.get(spi, {})
+        sa_windows = [w for w in windows if w["sa_id"] == f"0x{spi:08x}"]
         sa = ensemble.infer_sa(track, struct, tracker, [],
                                models_dir=config.MODELS_DIR,
                                offsets=offsets,
-                               ike_enc_chosen=ike_enc_chosen)
+                               ike_enc_chosen=ike_enc_chosen, windows=sa_windows)
         # SA characteristics from the tracker (§3.3 Step 3 table).
         life = sa_tracker.spi_lifetime_s(track)
         # A sub-second lifetime (single burst) is not an observable rekey

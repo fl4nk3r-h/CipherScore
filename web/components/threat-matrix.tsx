@@ -3,7 +3,7 @@ import type { MatrixCell, Severity } from "@/lib/types";
 
 const SEVS: Severity[] = ["info", "low", "medium", "high", "critical"];
 const HEAT: Record<string, string> = {
-  info: "bg-slate-800",
+  info: "bg-zinc-800",
   low: "bg-lime-900/60",
   medium: "bg-yellow-800/60",
   high: "bg-orange-800/70",
@@ -19,7 +19,7 @@ export function ThreatMatrix({ cells }: { cells: MatrixCell[] }) {
   }
   return (
     <div>
-      <h2 className="mb-2 text-sm font-semibold text-slate-300">Threat Matrix</h2>
+      <h2 className="mb-2 text-sm font-semibold text-zinc-300">Threat Matrix</h2>
       <table className="w-full text-center text-xs">
         <tbody>
           {grid.map((row, i) => (
@@ -39,7 +39,7 @@ export function ThreatMatrix({ cells }: { cells: MatrixCell[] }) {
           ))}
         </tbody>
       </table>
-      <div className="mt-1 flex justify-between text-[10px] text-slate-500">
+      <div className="mt-1 flex justify-between text-[10px] text-zinc-500">
         <span>← lower likelihood</span>
         <span>impact: info → critical →</span>
       </div>

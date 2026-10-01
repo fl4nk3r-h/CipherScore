@@ -38,6 +38,7 @@ export default function Live() {
   const { lastEvent, status } = useSSE(running ? api.url("/live/events") : null);
 
   useEffect(() => {
+    if (lastEvent?.event === "closed") setRunning(false);
     if (lastEvent?.event === "window") {
       const window = parseWindow(lastEvent.data);
       if (window) setWindows((prev) => [window, ...prev].slice(0, MAX_WINDOWS));
@@ -71,9 +72,9 @@ export default function Live() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-[1400px] space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Live</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-50">Live</h1>
         <div className="flex items-center gap-3">
           <ConnectionBadge status={running ? status : "idle"} />
           <Button
@@ -86,7 +87,7 @@ export default function Live() {
           </Button>
         </div>
       </div>
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-zinc-400">
         Rolling 10 s windows on one interface; predictions update every 10 s.
         Requires the API to run with CS_LIVE_ENABLED=true.
       </p>

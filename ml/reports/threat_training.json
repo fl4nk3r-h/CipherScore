@@ -1,0 +1,18 @@
+{
+  "beaconing": {
+    "status": "not_trained",
+    "reason": "dataset missing"
+  },
+  "dga": {
+    "status": "not_trained",
+    "reason": "dataset missing"
+  },
+  "dns_tunneling": {
+    "status": "not_trained",
+    "reason": "dataset missing"
+  },
+  "encrypted_malware": {
+    "status": "not_trained",
+    "reason": "dataset missing"
+  }
+}

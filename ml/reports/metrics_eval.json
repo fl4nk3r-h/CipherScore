@@ -1,0 +1,20 @@
+{
+  "mode": {
+    "status": "not_trained"
+  },
+  "cipher": {
+    "status": "not_trained"
+  },
+  "integ": {
+    "status": "not_trained"
+  },
+  "pfs": {
+    "status": "not_trained"
+  },
+  "dh_group": {
+    "status": "not_trained"
+  },
+  "traffic": {
+    "status": "not_trained"
+  }
+}

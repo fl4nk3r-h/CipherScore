@@ -1,5 +1,7 @@
 # CipherScope MVP: Prototype Specification
 
+> **Design specification.** For current commands, API paths, model status, and verification, see [Run sequence](RUN_SEQUENCE.md), [API reference](api.md), and [training guide](threat_training.md). Some sections below describe intended capabilities that are not yet trained or deployed.
+
 > **Goal of the MVP:** a working end-to-end prototype of the problem statement. It builds IPsec VPNs in a lab, captures their traffic, identifies the protocol and crypto parameters **from the captures alone**, assesses the security posture, and produces an Executive and Technical report on an interactive dashboard. The full platform in [ARCHITECTURE.md](./ARCHITECTURE.md) is the destination. This document covers the smallest version that meets **every mandatory point** of the problem statement and can be demonstrated live.
 
 Companion document: [repo.md](./repo.md) gives the exact repository layout for this MVP.

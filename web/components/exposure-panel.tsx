@@ -18,7 +18,7 @@ export function ExposurePanel({ sas }: { sas: SAEvidence[] }) {
     return { spi: sa.spi, items };
   }).filter((r) => r.items.length);
 
-  if (!rows.length) return <p className="text-sm text-slate-500">No metadata exposure detected.</p>;
+  if (!rows.length) return <p className="text-sm text-zinc-500">No metadata exposure detected.</p>;
   return (
     <div className="card">
       <h2 className="mb-2 font-semibold">Metadata exposure</h2>
@@ -26,7 +26,7 @@ export function ExposurePanel({ sas }: { sas: SAEvidence[] }) {
         {rows.map((r) => (
           <li key={r.spi}>
             <span className="font-mono text-xs text-cyan-300">{r.spi}</span>
-            <ul className="ml-4 list-disc text-slate-300">
+            <ul className="ml-4 list-disc text-zinc-300">
               {r.items.map((it) => <li key={it}>{it}</li>)}
             </ul>
           </li>

@@ -15,14 +15,16 @@ services:
       CS_MODELS_DIR: /models
       CS_RULES_DIR: /rules
       CS_MAX_UPLOAD_MB: "500"
-      CS_LIVE_ENABLED: "false"
+      CS_LIVE_ENABLED: ${CS_LIVE_ENABLED:-false}
+      CS_LIVE_INTERFACE: ${CS_LIVE_INTERFACE:-eth0}
+      CS_INTERNAL_CIDRS: ${CS_INTERNAL_CIDRS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
     # cap_add: [NET_RAW, NET_ADMIN]   # uncomment only for live mode
 
   web:
     build: ./web
     ports: ["3000:3000"]
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_API_URL: http://localhost:8010/api/v1
       NEXT_PUBLIC_GRAFANA_URL: http://localhost:${GRAFANA_PORT:-3001}
     depends_on: [api]
 

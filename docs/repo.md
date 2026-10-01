@@ -1,5 +1,7 @@
 # CipherScope MVP: Repository Structure
 
+> **Design specification.** For current commands, API paths, model status, and verification, see [Run sequence](RUN_SEQUENCE.md), [API reference](api.md), and [training guide](threat_training.md). Some sections below describe intended capabilities that are not yet trained or deployed.
+
 > This is the repository layout for the **MVP prototype** in [mvp.md](./mvp.md). It is a trimmed version of the full monorepo in [REPO_STRUCTURE.md](./REPO_STRUCTURE.md). The folder names are the same, so the MVP can grow into the full platform without a restructure.
 
 Repository name: `cipherscope-mvp`
