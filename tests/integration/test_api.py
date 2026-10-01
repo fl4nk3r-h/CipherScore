@@ -163,3 +163,44 @@ def test_live_capture_error_is_service_unavailable(client, monkeypatch):
 
     assert res.status_code == 503
     assert "tcpdump" in res.json()["detail"]
+
+
+def test_lab_sessions_include_latest_analysis_accuracy(client, tmp_path, monkeypatch):
+    import json
+    from analyzer import config
+    from api import db
+
+    sessions_dir = tmp_path / "sessions"
+    monkeypatch.setattr(config, "SESSIONS_DIR", sessions_dir)
+    session_dir = sessions_dir / "session-1"
+    session_dir.mkdir(parents=True)
+    (session_dir / "manifest.json").write_text(json.dumps({
+        "session_id": "session-1", "profile": "p01", "traffic_type": "web",
+        "labels": {"mode": "tunnel", "enc": "AES-GCM-16"}, "pcap": "capture.pcapng",
+    }))
+    conn = db.connect()
+    try:
+        conn.execute("INSERT INTO analysis (id, capture_id, status) VALUES (?, ?, ?)",
+                     ("an_test", "session-1", "completed"))
+        conn.execute("INSERT INTO sa (id, analysis_id, spi, peers, params) VALUES (?, ?, ?, ?, ?)",
+                     ("an_test-0x01", "an_test", "0x01", "[]", json.dumps({
+                         "spi": "0x01", "mode": {"value": "tunnel", "tag": "observed"},
+                         "enc": {"value": "AES-CBC", "tag": "inferred"},
+                         "traffic": {"top": "web", "p": 0.9},
+                     })))
+        conn.execute("INSERT INTO flow_window (sa_id, t0, features, pred, p) VALUES (?, ?, ?, ?, ?)",
+                     ("an_test-0x01", 0.0, json.dumps({"len_mean": 120.0}), "web", 0.9))
+        conn.commit()
+    finally:
+        conn.close()
+
+    sessions = client.get("/api/v1/lab/sessions").json()
+    assert len(sessions) == 1
+    accuracy = sessions[0]["accuracy"]
+    assert accuracy["status"] == "completed"
+    assert accuracy["matched"] == 2
+    assert accuracy["compared"] == 3
+    assert accuracy["match"]["enc"] is False
+    assert client.get("/api/v1/analyses/an_test/traffic").json() == [
+        {"pred": "web", "p": 0.9, "t0": 0.0, "features": {"len_mean": 120.0}}
+    ]
