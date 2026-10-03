@@ -8,12 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip curl ca-certificates \
     chromium \
     iputils-ping iproute2 \
-    swaks \
+    swaks libio-socket-inet6-perl netbase \
     sip-tester \
     ffmpeg \
-    iperf3 openssh-client \
+    iperf3 openssh-client sshpass \
  && rm -rf /var/lib/apt/lists/* \
- && python3 -m pip install --no-cache-dir --break-system-packages playwright websocket-client
+ && python3 -m pip install --no-cache-dir --break-system-packages playwright websockets
 
 # Playwright driver bundle; chromium from Debian is used as the browser executable.
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/bin
