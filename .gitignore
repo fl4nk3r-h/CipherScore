@@ -38,3 +38,7 @@ lab/**/*.swp
 dataset/labels.csv
 dataset/provenance.json
 dataset/rejected.json
+
+# Miscellaneous
+*.log
+.freebuf
