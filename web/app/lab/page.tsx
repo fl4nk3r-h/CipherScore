@@ -26,7 +26,8 @@ const FIELD_LABELS: Record<string, string> = {
   enc: "Encryption",
   key_bits: "Key size",
   integ: "Integrity",
-  dh_group: "DH group",
+  dh_group: "CHILD_SA DH group",
+  ike_dh_group: "IKE DH group",
   pfs: "PFS",
   nat_t: "NAT-T",
   traffic: "Traffic",
@@ -79,11 +80,13 @@ export default function Lab() {
   }, [run?.run_id, run?.status, runActive, reloadSessions]);
 
   const accuracy = useMemo(() => {
-    const accs = sessionList.map((s) => s.accuracy).filter((a): a is SessionAccuracy => a?.status === "completed" && a.compared > 0);
+    const accs = sessionList.map((s) => s.accuracy).filter((a): a is SessionAccuracy => a?.status === "completed" && a.eligible > 0);
     const fields: Record<string, { hit: number; seen: number }> = {};
     let totalMatched = 0;
     let totalCompared = 0;
+    let totalEligible = 0;
     for (const a of accs) {
+      totalEligible += a.eligible;
       for (const [field, ok] of Object.entries(a.match)) {
         if (ok == null) continue;
         fields[field] ??= { hit: 0, seen: 0 };
@@ -93,8 +96,8 @@ export default function Lab() {
         if (ok) totalMatched += 1;
       }
     }
-    const rate = totalCompared ? totalMatched / totalCompared : null;
-    return { analyzed: accs.length, totalMatched, totalCompared, rate, fields };
+    const rate = totalEligible ? totalMatched / totalEligible : null;
+    return { analyzed: accs.length, totalMatched, totalCompared, totalEligible, rate, fields };
   }, [sessionList]);
 
   async function runSelected() {
@@ -241,22 +244,22 @@ export default function Lab() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Model accuracy across sessions</CardTitle>
-          <CardDescription>Predicted vs actual per field over analyzed sessions</CardDescription>
+          <CardTitle>Passive matches across sessions</CardTitle>
+          <CardDescription>PCAP analysis only. Missing predictions count against passive coverage; gateway evidence is reported separately.</CardDescription>
         </CardHeader>
         <CardContent>
           {accuracy.analyzed ? (
             <div className="space-y-1 text-xs text-zinc-400">
               <div className="flex justify-between">
-                <span>{accuracy.analyzed} of {sessionList.length} sessions with comparable fields</span>
+                <span>{accuracy.analyzed} of {sessionList.length} analyzed sessions</span>
                 <span>
-                  {accuracy.totalMatched}/{accuracy.totalCompared} fields match
+                  {accuracy.totalMatched}/{accuracy.totalEligible} fields match · {accuracy.totalCompared} compared
                   ({accuracy.rate != null ? `${(accuracy.rate * 100).toFixed(1)}%` : "—"})
                 </span>
               </div>
               <Progress
                 value={accuracy.rate != null ? accuracy.rate * 100 : 0}
-                aria-label="Overall per-field match rate"
+                aria-label="Overall field match and prediction coverage"
                 className="mb-3"
                 tone="emerald"
               />
@@ -295,9 +298,9 @@ export default function Lab() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Sessions — ground truth vs predicted</CardTitle>
+          <CardTitle>Sessions — passive analysis and gateway verification</CardTitle>
           <CardDescription>
-            Per-session traffic and per-field accuracy; click a row to expand the field comparison.
+            Saved captures can be analyzed again after training. A missing prediction counts as an unmatched field.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -312,17 +315,15 @@ export default function Lab() {
                   <TableHead>Profile</TableHead>
                   <TableHead>Ground truth traffic</TableHead>
                   <TableHead>Predicted traffic</TableHead>
-                  <TableHead>Match rate</TableHead>
+                  <TableHead>Passive matches</TableHead>
+                  <TableHead>Verified fields</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sessionList.map((s) => {
-                  const acc = s.accuracy;
                   const isOpen = expanded.has(s.session_id);
                   const runningNow = analyzing.has(s.session_id);
-                  const busy = runningNow ||
-                    (acc != null && (acc.status === "queued" || acc.status === "running"));
                   return (
                     <FragmentRow
                       key={s.session_id}
@@ -393,8 +394,10 @@ function FragmentRow({
         <TableCell>
           {predicted ? (
             <span className="capitalize">{predicted}</span>
+          ) : session.capture_issue ? (
+            <span className="text-red-300" title={session.capture_issue}>invalid capture</span>
           ) : acc ? (
-            <span className="text-zinc-500">not predicted</span>
+            <span className="text-zinc-500" title="Traffic model is untrained or abstained">not predicted</span>
           ) : (
             "—"
           )}
@@ -405,9 +408,11 @@ function FragmentRow({
               <span className="text-xs font-semibold">{(rate * 100).toFixed(0)}%</span>
               <Progress value={rate * 100} className="w-24" tone="emerald" />
               <span className="text-xs text-zinc-500">
-                {acc?.matched}/{acc?.compared}
+                  {acc?.matched}/{acc?.eligible} · {acc?.compared} compared
               </span>
             </div>
+          ) : session.capture_issue ? (
+            <span className="text-xs text-red-300" title={session.capture_issue}>invalid capture</span>
           ) : acc?.status === "completed" ? (
             <span className="text-xs text-zinc-500">no comparable fields</span>
           ) : acc ? (
@@ -416,15 +421,23 @@ function FragmentRow({
             <span className="text-zinc-600">not analyzed</span>
           )}
         </TableCell>
+        <TableCell className="text-xs">
+          {session.verification?.compared
+            ? `${session.verification.matched}/${session.verification.compared} match · ${session.verification.compared} verified`
+            : <span className="text-zinc-500">unavailable</span>}
+        </TableCell>
         <TableCell className="text-right">
           {busy ? (
             <Button size="xs" variant="outline" disabled aria-busy>
               {runningNow ? "Analyzing…" : acc?.status ?? "…"}
             </Button>
           ) : acc?.analysis_id ? (
-            <Button size="xs" variant="outline" asChild>
-              <Link href={`/analyses/${acc.analysis_id}`}>View</Link>
-            </Button>
+            <div className="flex justify-end gap-2">
+              <Button size="xs" variant="outline" onClick={onAnalyze}>Reanalyze</Button>
+              <Button size="xs" variant="outline" asChild>
+                <Link href={`/analyses/${acc.analysis_id}`}>View</Link>
+              </Button>
+            </div>
           ) : (
             <Button size="xs" onClick={onAnalyze}>
               Analyze session
@@ -434,7 +447,7 @@ function FragmentRow({
       </TableRow>
       {open && (
         <TableRow id={`detail-${session.session_id}`}>
-          <TableCell colSpan={7} className="bg-zinc-950/40 p-3">
+          <TableCell colSpan={8} className="bg-zinc-950/40 p-3">
             <FieldComparison session={session} />
           </TableCell>
         </TableRow>
@@ -448,7 +461,9 @@ const COMPARABLE = Object.keys(FIELD_LABELS);
 function FieldComparison({ session }: { session: LabSession }) {
   const acc = session.accuracy;
   return (
-    <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+    <div>
+      <p className="mb-2 text-xs font-semibold text-zinc-300">Passive analysis from PCAP · {acc ? `${acc.matched}/${acc.eligible} matches` : "not analyzed"}</p>
+      <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
       {COMPARABLE.map((field) => {
         const truth = session.labels[field];
         const expected = field === "traffic" ? session.traffic_type : truth;
@@ -463,7 +478,7 @@ function FieldComparison({ session }: { session: LabSession }) {
               </span>
               <span className="text-zinc-600">→</span>
               <span title="Predicted">
-                <span className="text-zinc-500">AI&nbsp;</span>
+                <span className="text-zinc-500">Analysis&nbsp;</span>
                 <span className={match === false ? "text-red-300" : "text-zinc-100"}>
                   {fmt(predicted)}
                 </span>
@@ -479,6 +494,32 @@ function FieldComparison({ session }: { session: LabSession }) {
           </div>
         );
       })}
+      </div>
+      <p className="mb-2 mt-4 text-xs font-semibold text-zinc-300">Gateway verification · {session.verification?.matched ?? 0}/{session.verification?.compared ?? 0} verified fields match</p>
+      <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+        {["mode", "enc", "key_bits", "integ", "pfs", "dh_group"].map((field) => {
+          const item = session.verification?.fields[field];
+          const configured = item?.source === "configured";
+          const source = item?.source === "legacy_sa_state" ? "saved SA state"
+            : item?.source === "gateway_vici_rekey" ? "VICI rekey"
+            : item?.source === "gateway_vici" ? "VICI SA state" : null;
+          return <div key={field} className="flex items-center justify-between gap-2 border-b border-zinc-800/60 py-1 text-xs">
+            <span className="text-zinc-400">{FIELD_LABELS[field]}</span>
+            <span className="flex items-center gap-2 font-mono">
+              <span className="text-zinc-500">GT</span>{fmt(session.labels[field])}
+              <span className="text-zinc-600">→</span>{fmt(item?.value)}
+              <Badge variant={configured ? "outline" : item?.match === true ? "success" : item?.match === false ? "destructive" : "outline"}>
+                {configured ? "configured" : item?.source === "unavailable" || !item ? "unavailable" : item.match === true ? "verified match" : item.match === false ? "verified mismatch" : "gateway"}
+              </Badge>
+              {source && <span className="text-zinc-500" title="Gateway evidence source">{source}</span>}
+            </span>
+          </div>;
+        })}
+        <div className="flex items-center justify-between gap-2 border-b border-zinc-800/60 py-1 text-xs">
+          <span className="text-zinc-400">IKE DH group</span>
+          <span className="font-mono">{fmt(session.labels.ike_dh_group)} <Badge variant="outline">configured</Badge></span>
+        </div>
+      </div>
     </div>
   );
 }
