@@ -11,7 +11,6 @@ import pandas as pd
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.frozen import FrozenEstimator
 from sklearn.metrics import accuracy_score, f1_score
-from sklearn.model_selection import StratifiedGroupKFold
 
 from analyzer.infer.calibration import expected_calibration_error
 from analyzer.infer.features import SA_FEATURES, TRAFFIC_FEATURES
@@ -27,13 +26,37 @@ TARGETS = {"mode": ("mode", SA_FEATURES), "cipher": ("cipher", SA_FEATURES),
 
 
 def _split(data: pd.DataFrame, target: str):
-    if data["profile"].nunique() < 5:
+    profiles = sorted(data["profile"].unique())
+    if len(profiles) < 5:
         raise ValueError("need at least five distinct profiles for disjoint folds")
-    cv = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=43)
-    folds = [held for _, held in cv.split(data, data[target], groups=data["profile"])]
-    train_idx = np.concatenate(folds[3:])
-    return (data.iloc[train_idx], data.iloc[folds[2]],
-            data.iloc[folds[1]], data.iloc[folds[0]])
+    classes = set(data[target].unique())
+    class_profiles = data.groupby(target)["profile"].nunique().to_dict()
+    if len(classes) == 2 and min(class_profiles.values()) < 4:
+        raise ValueError(f"{target}: need each binary class in >=4 profiles "
+                         f"for train/calibration/conformal/test; "
+                         f"profiles per class: {class_profiles}")
+    # Allocate complete profiles directly. Five-fold SGKF can leave a single
+    # one-class profile in a holdout even when a valid four-way split exists.
+    by_profile = {profile: set(part[target]) for profile, part in
+                  data.groupby("profile")}
+    holdout_size = max(1, round(len(profiles) / 5))
+    rng = np.random.default_rng(43)
+    for _ in range(4096):
+        shuffled = rng.permutation(profiles)
+        test_groups = shuffled[:holdout_size]
+        conformal_groups = shuffled[holdout_size:2 * holdout_size]
+        cal_groups = shuffled[2 * holdout_size:3 * holdout_size]
+        train_groups = shuffled[3 * holdout_size:]
+        groups = (train_groups, cal_groups, conformal_groups, test_groups)
+        group_classes = [set().union(*(by_profile[p] for p in part))
+                         for part in groups]
+        if (group_classes[0] == classes and group_classes[1] == classes
+                and all(len(values) >= 2 for values in group_classes)):
+            return tuple(data[data["profile"].isin(part)] for part in groups)
+    raise ValueError(f"{target}: no independently calibratable, class-diverse "
+                     "profile-disjoint split across "
+                     f"{data['profile'].nunique()} profiles; profiles per class: "
+                     f"{class_profiles}")
 
 
 def _ece(y, proba, classes) -> float:
@@ -49,9 +72,6 @@ def train_task(task: str, data: pd.DataFrame) -> dict:
     if len(data) < 100 or data[target].nunique() < 2:
         raise ValueError(f"{task}: need >=100 rows and >=2 classes; got {len(data)} rows")
     train, cal, conformal, test = _split(data, target)
-    if min(train[target].nunique(), cal[target].nunique(),
-           conformal[target].nunique(), test[target].nunique()) < 2:
-        raise ValueError(f"{task}: each disjoint split must contain >=2 classes")
     base = lgb.LGBMClassifier(n_estimators=200, learning_rate=0.05,
                               num_leaves=15, random_state=43, verbosity=-1)
     base.fit(train[columns], train[target])
