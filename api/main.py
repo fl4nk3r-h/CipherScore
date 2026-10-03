@@ -5,8 +5,8 @@ analysis logic: every router calls analyzer.pipeline or a repository.
 """
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
