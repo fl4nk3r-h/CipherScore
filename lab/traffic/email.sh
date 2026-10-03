@@ -20,15 +20,17 @@ while [ $SECONDS -lt $END ]; do
   head -c "$SIZE" /dev/urandom > "$ATTACH"
 
   swaks --to labuser@server-b --from sender@client-a \
-        --server "${SERVER}:25" \
-        --attach "$ATTACH" \
-        --header "Subject: lab-mail-$i" || true
+        --server "$SERVER" --port 25 \
+        --attach "@$ATTACH" \
+        --header "Subject: lab-mail-$i" >/dev/null
 
   # IMAP fetch cycle (Dovecot, port 143).
   python3 - "$SERVER" <<'PY'
-import imaplib, os, sys
+import imaplib, ssl, sys
 host = sys.argv[1]
-m = imaplib.IMAP4(host, 143)
+# Dovecot requires TLS for password login from gateway-hosted clients.
+# The isolated lab uses its locally generated certificate.
+m = imaplib.IMAP4_SSL(host, 993, ssl_context=ssl._create_unverified_context())
 m.login("labuser", "labpass")
 m.select("INBOX")
 typ, data = m.search(None, "ALL")
