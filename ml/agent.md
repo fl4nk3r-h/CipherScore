@@ -6,4 +6,4 @@ Use [the current data and training guide](../docs/threat_training.md) and [model
 
 `ml.build_threat_dataset` accepts scoped JSONL capture labels and re-extracts features through the production threat engine. `ml.import_domains` converts labeled DGA CSV data to production lexical features. `ml.train_threats` trains beaconing, DGA, DNS tunnelling, and suspicious encrypted-session models with scenario-disjoint folds. Source datasets and their label limits are listed in the guide. Rules handle DDoS, scanning, and outbound-volume exfiltration.
 
-The registry remains untrained until varied, independently split capture data meets the quality gates. No training data may leak from a test profile, host, or scenario into fitting or either calibration fold.
+Only heads that pass the quality gates may enter the registry. No training data may leak from a test profile, host, or scenario into fitting or either calibration fold.
