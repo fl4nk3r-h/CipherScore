@@ -9,6 +9,7 @@ set -euo pipefail
 # address, miss the tunnel's 10.1/24<->10.2/24 traffic selectors, and ride the
 # shared bridge in cleartext.
 ip addr add 10.1.0.10/24 dev lo 2>/dev/null || true
+ip -6 addr add fd01::10/64 dev lo 2>/dev/null || true
 ip route replace 10.2.0.0/24 via 172.30.0.2 src 10.1.0.10 2>/dev/null || true
 ip route replace fd02::/64 via fd30::2 src fd01::10 2>/dev/null || true
 # rp_filter would drop ESP-decapsulated inner traffic on the strict default.
