@@ -68,7 +68,10 @@ def main(argv: list[str] | None = None) -> int:
                   "phase": "Completed with session errors" if counts["failed"] else "Lab run complete",
                   "eta_seconds": 0, "current_session": None,
                   "finished_at": time.time()})
-        return 1 if outcome == "failed" else 0
+        print(f"[lab] sweep finished: {counts['completed']} completed, "
+              f"{counts['skipped']} skipped, {counts['failed']} failed "
+              f"of {counts['total']} planned sessions", flush=True)
+        return 1 if counts["failed"] else 0
     return 0
 
 
