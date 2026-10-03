@@ -47,10 +47,10 @@ def ike_sa_suite(sessions: list[IKESession]) -> dict[str, TaggedValue]:
     return out
 
 
-def nat_t(session_nat_hint: bool, udp_esp_seen: bool) -> TaggedValue:
-    return TaggedValue(value=session_nat_hint or udp_esp_seen,
-                       tag="observed" if (session_nat_hint or udp_esp_seen) else "unknown",
-                       confidence=1.0 if (session_nat_hint or udp_esp_seen) else 0.0)
+def nat_t(udp_esp_seen: bool) -> TaggedValue:
+    # NAT_DETECTION notifications announce capability; the ESP carrier tells
+    # us whether this observed SA actually uses UDP encapsulation.
+    return TaggedValue(value=udp_esp_seen, tag="observed", confidence=1.0)
 
 
 def aggressive_mode(sessions: list[IKESession]) -> TaggedValue:
