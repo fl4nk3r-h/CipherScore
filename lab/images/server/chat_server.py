@@ -20,7 +20,7 @@ async def handler(ws) -> None:
 
 
 async def main(port: int) -> None:
-    async with websockets.serve(handler, "0.0.0.0", port):
+    async with websockets.serve(handler, None, port):
         await asyncio.Future()
 
 
