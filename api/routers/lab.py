@@ -20,6 +20,7 @@ import yaml
 from fastapi import APIRouter, HTTPException
 
 from analyzer import config
+from analyzer.lab_evidence import normalize_labels, parse_legacy_state
 from api import db
 from api.lab_run_status import read_status, update_status
 from api.repositories import analyses_repo
@@ -176,6 +177,8 @@ def _comparable(field: str, value):
         if "cbc" in value:
             return "cbc"
     if field == "integ":
+        if "*" in value or value.startswith("icv-"):
+            return None
         if value == "aead":
             return value
         for digest in ("sha512", "sha384", "sha256", "sha1", "md5"):
@@ -189,21 +192,29 @@ def _comparable(field: str, value):
 def _accuracy(analysis: dict, labels: dict, traffic_type: str) -> dict:
     result = {"analysis_id": analysis["id"], "status": analysis["status"],
               "predicted": {}, "match": {}, "match_rate": None,
-              "matched": 0, "compared": 0, "missing": 0}
+              "matched": 0, "compared": 0, "missing": 0, "eligible": 0}
     if analysis["status"] != "completed":
         return result
     sas = analyses_repo.sas(analysis["id"])
     if not sas:
         return result
-    sa = sas[0]
     fields = ("ike_version", "mode", "enc", "key_bits", "integ", "dh_group", "pfs", "nat_t")
+    # A capture may contain several inbound/outbound CHILD_SAs. Use the SA
+    # with the most available evidence, independent of the ground truth.
+    sa = max(sas, key=lambda item: sum(_value(item.get(field)) is not None
+                                       for field in fields) + int(bool(
+                                           (item.get("traffic") or {}).get("top"))))
     predicted = {field: _value(sa.get(field)) for field in fields}
     predicted["traffic"] = (sa.get("traffic") or {}).get("top")
     result["predicted"] = predicted
     for field in (*fields, "traffic"):
         expected = traffic_type if field == "traffic" else labels.get(field)
         actual = predicted.get(field)
-        if expected is None or actual is None:
+        if expected is None:
+            result["match"][field] = None
+            continue
+        result["eligible"] += 1
+        if actual is None or _comparable(field, actual) is None:
             result["match"][field] = None
             result["missing"] += 1
             continue
@@ -211,14 +222,67 @@ def _accuracy(analysis: dict, labels: dict, traffic_type: str) -> dict:
         result["match"][field] = matched
         result["compared"] += 1
         result["matched"] += int(matched)
-    if result["compared"]:
-        result["match_rate"] = result["matched"] / result["compared"]
+    if result["eligible"]:
+        result["match_rate"] = result["matched"] / result["eligible"]
     return result
+
+
+def _verification(manifest: dict, analysis: dict | None, labels: dict) -> dict:
+    """Gateway values require an exact CHILD_SA SPI join to the saved PCAP."""
+    fields = {field: {"value": None, "source": "unavailable", "match": None}
+              for field in ("mode", "enc", "key_bits", "integ", "pfs", "dh_group")}
+    evidence = manifest.get("gateway_evidence") or {}
+    if evidence:
+        children = evidence.get("after", []) + evidence.get("before", [])
+        source = "gateway_vici"
+    else:
+        children = parse_legacy_state(manifest.get("sa_state") or "")
+        source = "legacy_sa_state"
+        for field in ("pfs", "dh_group"):
+            value = labels.get(field)
+            if value is not None:
+                fields[field] = {"value": value, "source": "configured", "match": None}
+    if analysis and analysis["status"] == "completed":
+        spis = {sa.get("spi", "").lower() for sa in analyses_repo.sas(analysis["id"])}
+        matched_children = [child for child in children
+                            if spis.intersection(child.get("spis", []))]
+        # Multiple distinct children in a capture are ambiguous for a single
+        # session-level value. They must agree; ordering cannot decide it.
+        for field in ("mode", "enc", "key_bits", "integ"):
+            values = {child.get(field) for child in matched_children if child.get(field) is not None}
+            if len(values) == 1:
+                value = values.pop()
+                fields[field] = {"value": value, "source": source,
+                                 "match": _comparable(field, value) == _comparable(field, labels.get(field))
+                                 if labels.get(field) is not None else None}
+        rekey = evidence.get("rekey") or {}
+        if rekey.get("status") == "observed":
+            child = rekey.get("child") or {}
+            if spis.intersection(child.get("spis", [])):
+                for field, value in (("pfs", child.get("dh_group") is not None),
+                                     ("dh_group", child.get("dh_group"))):
+                    if value is not None:
+                        fields[field] = {"value": value, "source": "gateway_vici_rekey",
+                                         "match": _comparable(field, value) == _comparable(field, labels.get(field))
+                                         if labels.get(field) is not None else None}
+    eligible = sum(labels.get(field) is not None for field in fields)
+    compared = sum(item["match"] is not None for item in fields.values())
+    matched = sum(item["match"] is True for item in fields.values())
+    return {"fields": fields, "eligible": eligible, "compared": compared,
+            "matched": matched}
 
 
 @router.get("/sessions")
 def list_sessions() -> list[dict]:
     sessions_root = config.SESSIONS_DIR
+    rejected_path = _REPO_ROOT / "dataset" / "rejected.json"
+    rejected = {}
+    if rejected_path.exists():
+        try:
+            rejected = {item["session_id"]: item["reason"]
+                        for item in json.loads(rejected_path.read_text())}
+        except (OSError, ValueError, KeyError, TypeError):
+            rejected = {}
     conn = db.connect()
     try:
         analyses = {row["capture_id"]: dict(row) for row in conn.execute(
@@ -229,12 +293,18 @@ def list_sessions() -> list[dict]:
     for manifest_path in sorted(sessions_root.glob("*/manifest.json")):
         m = json.loads(manifest_path.read_text())
         analysis = analyses.get(m["session_id"])
+        labels = normalize_labels(m["labels"])
         out.append({
             "session_id": m["session_id"],
             "profile": m["profile"],
             "traffic_type": m["traffic_type"],
-            "labels": m["labels"],
+            "labels": labels,
             "pcap": m["pcap"],
-            "accuracy": _accuracy(analysis, m["labels"], m["traffic_type"]) if analysis else None,
+            "capture_issue": (rejected.get(m["session_id"])
+                              if rejected_path.exists() and
+                              manifest_path.stat().st_mtime <= rejected_path.stat().st_mtime
+                              else None),
+            "accuracy": _accuracy(analysis, labels, m["traffic_type"]) if analysis else None,
+            "verification": _verification(m, analysis, labels),
         })
     return out
