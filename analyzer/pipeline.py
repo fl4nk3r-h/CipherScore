@@ -84,6 +84,7 @@ def run_analysis(pcap_path: Path, rule_pack: str = config.DEFAULT_RULE_PACK,
                                models_dir=config.MODELS_DIR,
                                offsets=offsets,
                                ike_enc_chosen=ike_enc_chosen, windows=sa_windows)
+        sa.ike_version = ike_version_inf
         # SA characteristics from the tracker (§3.3 Step 3 table).
         life = sa_tracker.spi_lifetime_s(track)
         # A sub-second lifetime (single burst) is not an observable rekey
