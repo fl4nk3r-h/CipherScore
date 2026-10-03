@@ -27,7 +27,18 @@
   <recv response="100" optional="true"/>
   <recv response="180" optional="true"/>
   <recv response="200" rtd="true"/>
-  <pause milliseconds="20000"/>
+  <send>
+    <![CDATA[
+      ACK sip:server-b SIP/2.0
+      Via: SIP/2.0/UDP [local_ip]:[local_port]
+      From: sipp <sip:sipp@[local_ip]>;tag=[call_number]
+      To: <sip:server-b>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 1 ACK
+      Content-Length: 0
+    ]]>
+  </send>
+  <pause/>
   <send retrans="500">
     <![CDATA[
       BYE sip:server-b SIP/2.0

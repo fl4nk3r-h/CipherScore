@@ -1,26 +1,144 @@
 {
   "mode": {
-    "status": "not_trained",
-    "reason": "mode: need >=100 rows and >=2 classes; got 8 rows"
+    "accuracy": 0.9352,
+    "macro_f1": 0.4832,
+    "ece": 0.3423,
+    "train_rows": 1238,
+    "cal_rows": 672,
+    "conformal_rows": 2074,
+    "test_rows": 5860,
+    "train_profiles": [
+      "p01",
+      "p04",
+      "p05",
+      "p07",
+      "p10",
+      "p12"
+    ],
+    "cal_profiles": [
+      "p02",
+      "p06",
+      "p15"
+    ],
+    "conformal_profiles": [
+      "p08",
+      "p11",
+      "p13"
+    ],
+    "test_profiles": [
+      "p03",
+      "p09",
+      "p14"
+    ],
+    "conformal_coverage": 0.9727,
+    "promoted": false
   },
   "cipher": {
-    "status": "not_trained",
-    "reason": "cipher: need >=100 rows and >=2 classes; got 8 rows"
+    "accuracy": 0.2734,
+    "macro_f1": 0.2147,
+    "ece": 0.4824,
+    "train_rows": 2800,
+    "cal_rows": 5940,
+    "conformal_rows": 592,
+    "test_rows": 512,
+    "train_profiles": [
+      "p01",
+      "p03",
+      "p07",
+      "p11",
+      "p12",
+      "p13"
+    ],
+    "cal_profiles": [
+      "p06",
+      "p14",
+      "p15"
+    ],
+    "conformal_profiles": [
+      "p02",
+      "p05",
+      "p09"
+    ],
+    "test_profiles": [
+      "p04",
+      "p08",
+      "p10"
+    ],
+    "conformal_coverage": 1.0,
+    "promoted": false
   },
   "integ": {
     "status": "not_trained",
-    "reason": "integ: need >=100 rows and >=2 classes; got 8 rows"
+    "reason": "integ: no independently calibratable, class-diverse profile-disjoint split across 15 profiles; profiles per class: {'AEAD': 5, 'sha1': 3, 'sha256': 6, 'sha512': 1}"
   },
   "pfs": {
-    "status": "not_trained",
-    "reason": "pfs: need >=100 rows and >=2 classes; got 8 rows"
+    "accuracy": 0.6051,
+    "macro_f1": 0.5911,
+    "ece": 0.3949,
+    "train_rows": 742,
+    "cal_rows": 628,
+    "conformal_rows": 676,
+    "test_rows": 628,
+    "train_profiles": [
+      "p01",
+      "p08",
+      "p09",
+      "p15"
+    ],
+    "cal_profiles": [
+      "p03",
+      "p07",
+      "p10"
+    ],
+    "conformal_profiles": [
+      "p02",
+      "p06",
+      "p11"
+    ],
+    "test_profiles": [
+      "p04",
+      "p05",
+      "p12"
+    ],
+    "conformal_coverage": 0.6019,
+    "promoted": false
   },
   "dh_group": {
     "status": "not_trained",
-    "reason": "dh_group: need >=100 rows and >=2 classes; got 8 rows"
+    "reason": "dh_group: no independently calibratable, class-diverse profile-disjoint split across 8 profiles; profiles per class: {14.0: 3, 19.0: 2, 20.0: 2, 31.0: 1}"
   },
   "traffic": {
-    "status": "not_trained",
-    "reason": "traffic: need >=100 rows and >=2 classes; got 14 rows"
+    "accuracy": 0.6782,
+    "macro_f1": 0.6578,
+    "ece": 0.2046,
+    "train_rows": 9401,
+    "cal_rows": 4836,
+    "conformal_rows": 4960,
+    "test_rows": 8752,
+    "train_profiles": [
+      "p01",
+      "p04",
+      "p05",
+      "p07",
+      "p10",
+      "p12"
+    ],
+    "cal_profiles": [
+      "p02",
+      "p06",
+      "p15"
+    ],
+    "conformal_profiles": [
+      "p08",
+      "p11",
+      "p13"
+    ],
+    "test_profiles": [
+      "p03",
+      "p09",
+      "p14"
+    ],
+    "conformal_coverage": 0.8771,
+    "promoted": false
   }
 }

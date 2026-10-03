@@ -4,15 +4,16 @@ FROM debian:12-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx postfix dovecot-imapd \
-    sip-tester ffmpeg \
+    sip-tester ffmpeg iperf3 openssh-server \
     python3 python3-pip \
-    iproute2 \
+    iproute2 libio-socket-inet6-perl \
  && rm -rf /var/lib/apt/lists/* \
  && python3 -m pip install --no-cache-dir --break-system-packages websockets
 
-COPY hls/ /var/www/hls/
-COPY chat_server.py /opt/chat_server.py
-COPY entrypoint.sh /entrypoint.sh
+COPY images/server/hls/ /var/www/hls/
+COPY images/server/chat_server.py /opt/chat_server.py
+COPY traffic/voip/uas.xml /opt/uas.xml
+COPY images/server/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 80 25 143 5060/udp 8080

@@ -167,8 +167,10 @@ def test_live_capture_error_is_service_unavailable(client, monkeypatch):
 
 def test_lab_sessions_include_latest_analysis_accuracy(client, tmp_path, monkeypatch):
     import json
+
     from analyzer import config
     from api import db
+    from api.routers import lab
 
     sessions_dir = tmp_path / "sessions"
     monkeypatch.setattr(config, "SESSIONS_DIR", sessions_dir)
@@ -200,7 +202,33 @@ def test_lab_sessions_include_latest_analysis_accuracy(client, tmp_path, monkeyp
     assert accuracy["status"] == "completed"
     assert accuracy["matched"] == 2
     assert accuracy["compared"] == 3
+    assert accuracy["eligible"] == 3
+    assert accuracy["match_rate"] == 2 / 3
     assert accuracy["match"]["enc"] is False
     assert client.get("/api/v1/analyses/an_test/traffic").json() == [
         {"pred": "web", "p": 0.9, "t0": 0.0, "features": {"len_mean": 120.0}}
     ]
+    monkeypatch.setattr(lab, "_REPO_ROOT", tmp_path)
+    rejected_path = tmp_path / "dataset/rejected.json"
+    rejected_path.parent.mkdir()
+    rejected_path.write_text(json.dumps([
+        {"session_id": "session-1", "reason": "0 ESP, 0 IKE"}
+    ]))
+    assert client.get("/api/v1/lab/sessions").json()[0]["capture_issue"] == "0 ESP, 0 IKE"
+
+
+def test_lab_accuracy_counts_missing_predictions_and_ambiguous_integrity(monkeypatch):
+    from api.routers import lab
+
+    monkeypatch.setattr(lab.analyses_repo, "sas", lambda _id: [{}, {
+        "mode": {"value": "tunnel", "tag": "inferred"},
+        "integ": {"value": "HMAC-SHA*-96/128", "tag": "inferred"},
+    }])
+    result = lab._accuracy({"id": "an_test", "status": "completed"},
+                           {"mode": "tunnel", "integ": "sha1", "pfs": True}, "web")
+    assert result["matched"] == 1
+    assert result["compared"] == 1
+    assert result["eligible"] == 4
+    assert result["missing"] == 3
+    assert result["match_rate"] == 0.25
+    assert result["match"]["integ"] is None

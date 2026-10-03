@@ -42,7 +42,8 @@ async def run(host: str, port: int, duration: int) -> None:
     profile = load_profile()
     rng = random.Random()
     end = time.monotonic() + duration
-    async with websockets.connect(f"ws://{host}:{port}") as ws:
+    url_host = f"[{host}]" if ":" in host else host
+    async with websockets.connect(f"ws://{url_host}:{port}") as ws:
         while time.monotonic() < end:
             for kind in ("text", "image", "voice"):
                 lo, hi = profile[kind]["interval_s"]

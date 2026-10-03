@@ -9,6 +9,7 @@ services:
     volumes:
       - ./data:/data
       - ./models:/models:ro
+      - ./dataset:/app/dataset:ro
       - ./rules:/rules:ro
     environment:
       CS_DATA_DIR: /data

@@ -5,7 +5,7 @@ PROFILES ?= all
 TRAFFIC ?= icmp,web
 PYTHON ?= uv run python
 
-.PHONY: setup lab-up lab-down lab-run lab-all dataset train eval threat-train threat-benchmark up down analyze test e2e demo
+.PHONY: setup lab-up lab-down lab-run lab-all dataset train train-cached eval threat-train threat-benchmark up down analyze test e2e demo
 
 setup:            ## Install Python deps (uv sync), web deps (pnpm i), pull images
 	uv sync
@@ -13,21 +13,29 @@ setup:            ## Install Python deps (uv sync), web deps (pnpm i), pull imag
 	docker compose -f docker-compose.yml pull || true
 
 lab-up:           ## Start the strongSwan lab (docker-compose.lab.yml)
+	docker compose -f docker-compose.lab.yml --profile transport build
+	docker compose -f docker-compose.yml build capture
+	docker compose -f docker-compose.lab.yml --profile transport stop transport-client transport-server
+	docker compose -f docker-compose.yml stop capture
 	docker compose -f docker-compose.lab.yml up -d
+	docker compose -f docker-compose.yml up -d --no-deps --force-recreate capture
 
 lab-down:         ## Stop the strongSwan lab
 	docker compose -f docker-compose.lab.yml down
 
-lab-run:          ## Run selected profiles and capture labeled sessions
+lab-run: lab-up  ## Run selected profiles and capture labeled sessions
 	$(PYTHON) -m lab.runner run --profiles $(PROFILES) --traffic $(TRAFFIC)
 
-lab-all:          ## Run lab/matrix.yaml (every profile x every traffic type x repetitions)
+lab-all: lab-up  ## Run lab/matrix.yaml (every profile x every traffic type x repetitions)
 	$(PYTHON) -m lab.runner run --matrix lab/matrix.yaml
 
 dataset:          ## Build verified IPsec SA/window Parquet and labels.csv
 	$(PYTHON) -m ml.build_dataset
 
-train:            ## Train and gate six IPsec models into models/
+train: dataset    ## Rebuild from saved sessions, then train and gate six IPsec models
+	$(PYTHON) -m ml.train
+
+train-cached:     ## Retrain from existing Parquet without rescanning saved captures
 	$(PYTHON) -m ml.train
 
 eval:             ## Summarize held-out metrics and update model_card.md

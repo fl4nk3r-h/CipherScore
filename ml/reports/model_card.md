@@ -11,12 +11,12 @@ fitting, probability calibration, conformal calibration, and testing.
 
 | Head | Version | Macro F1 | ECE | Coverage |
 |---|---|---:|---:|---:|
-| mode | untrained | — | — | — |
-| cipher | untrained | — | — | — |
+| mode | untrained | 0.4832 | 0.3423 | 0.9727 |
+| cipher | untrained | 0.2147 | 0.4824 | 1.0 |
 | integ | untrained | — | — | — |
-| pfs | untrained | — | — | — |
+| pfs | untrained | 0.5911 | 0.3949 | 0.6019 |
 | dh_group | untrained | — | — | — |
-| traffic | untrained | — | — | — |
+| traffic | v0.2.0 | 0.9181 | 0.0424 | 0.8546 |
 
 ## Limits
 

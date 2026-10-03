@@ -22,7 +22,7 @@ cd web
 NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 pnpm dev
 ```
 
-Open `http://localhost:3000`. Upload a PCAP through the New Analysis screen or call `POST /api/v1/captures`, then `POST /api/v1/analyses` with the returned `capture_id`. Follow `GET /api/v1/analyses/{id}/events`, then fetch summary, SAs, traffic, findings, or reports. API startup migrates SQLite and loads any registered models. All checked-in registry entries are currently null, so model-only values stay unknown; rules and observable IKE/ESP evidence still work.
+Open `http://localhost:3000`. Upload a PCAP through the New Analysis screen or call `POST /api/v1/captures`, then `POST /api/v1/analyses` with the returned `capture_id`. Follow `GET /api/v1/analyses/{id}/events`, then fetch summary, SAs, traffic, findings, or reports. API startup migrates SQLite and loads registered models. The IPsec traffic head is currently promoted; other model-only values stay unknown while their heads are unregistered.
 
 `make up` is not currently a full dashboard deployment: `docker-compose.yml` refers to `web/Dockerfile`, which is absent. The API Docker image builds, and `cd web && pnpm build` compiles the dashboard. Compose publishes the API at port 8010 if running that service alone; use `NEXT_PUBLIC_API_URL=http://localhost:8010/api/v1` for a local dashboard against it.
 
@@ -38,14 +38,14 @@ The detectors use no decryption and send no traffic across the monitored link. D
 
 ```bash
 make lab-all
-make dataset
 make train
 make eval
 ```
 
-`make lab-all` uses `lab/matrix.yaml` to select profiles, traffic, and repetitions. The runner skips already valid session IDs, captures IKE plus protected traffic, triggers CHILD_SA rekey, and writes a manifest only after capture and negotiated SA checks. `make dataset` writes shared serving/training features plus labels, SHA-256 provenance, and rejected-session reasons. `make train` attempts six IPsec heads using disjoint profile folds for fitting, probability calibration, conformal calibration, and testing. It promotes only heads that pass held-out gates.
+`make lab-all` plans 560 sessions (16 profiles × 7 traffic types × 5 repetitions). The runner verifies existing captures before skipping them; invalid old manifests are preserved as `manifest.invalid-*.json` and recaptured on a later sweep. `make train` first runs `make dataset` against saved sessions, then attempts six IPsec heads using disjoint profile folds for fitting, probability calibration, conformal calibration, and testing. It promotes only heads that pass held-out gates. Lab captures do not need to be generated again to rebuild features or retrain. Use the Lab page's **Reanalyze** action after training to process a saved capture with the current models.
+For repeated parameter tuning on the same dataset snapshot, run `make train-cached && make eval`; it skips the capture scan. Run `make train` again to include sessions captured since the previous dataset build.
 
-**Current outcome:** 30 older sessions were rejected for insufficient packets. Two new p01 captures produced 8 SA rows and 14 traffic windows, all from one profile. The trainer ran and left all six IPsec heads untrained. See [the model card](../ml/reports/model_card.md) and [training report](../ml/reports/training.json). Collect more valid, class-diverse profiles before relying on learned IPsec predictions.
+Check [the model card](../ml/reports/model_card.md), [training report](../ml/reports/training.json), and `dataset/rejected.json` for the current snapshot. Repeating one profile adds rows but cannot replace independently split, class-diverse profiles. Unpromoted heads leave model-only fields unknown; the dashboard also displays rule-based and observed evidence.
 
 For learned threat detectors, prepare labeled capture intervals with `python -m ml.build_threat_dataset manifest.jsonl` or labeled DGA domains with `python -m ml.import_domains domains.csv`, then run `make threat-train`. Dataset sources, manifest fields, split policy, and limits are in [the training guide](threat_training.md). The threat registry also remains untrained.
 

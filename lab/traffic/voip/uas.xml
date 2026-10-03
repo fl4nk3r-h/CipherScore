@@ -38,7 +38,7 @@
     ]]>
   </send>
   <recv request="ACK"/>
-  <pause milliseconds="20000"/>
+  <pause milliseconds="1000"/>
   <recv request="BYE"/>
   <send>
     <![CDATA[

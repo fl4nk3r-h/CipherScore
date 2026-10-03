@@ -10,12 +10,19 @@ TASKS = ("mode", "cipher", "integ", "pfs", "dh_group", "traffic")
 def main() -> None:
     root = Path("models")
     registry = json.loads((root / "registry.json").read_text())
+    training_path = Path("ml/reports/training.json")
+    training = json.loads(training_path.read_text()) if training_path.exists() else {}
     metrics = {}
     for task in TASKS:
         version = registry.get(task)
         path = root / task / str(version) / "metrics.json" if version else None
-        metrics[task] = json.loads(path.read_text()) if path and path.exists() else {
-            "status": "not_trained"}
+        if path and path.exists():
+            metrics[task] = json.loads(path.read_text())
+        else:
+            attempt = training.get(task, {})
+            metrics[task] = ({"status": "not_promoted", **attempt}
+                             if "promoted" in attempt else
+                             attempt or {"status": "not_trained"})
     report = Path("ml/reports")
     report.mkdir(exist_ok=True)
     (report / "metrics_eval.json").write_text(json.dumps(metrics, indent=2))

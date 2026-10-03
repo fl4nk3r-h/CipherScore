@@ -36,6 +36,58 @@ def _inet_str(addr: bytes, version: int) -> str:
     return str(ipaddress.ip_address(addr))
 
 
+def _ipv6_from_ethernet(frame: bytes) -> bytes | None:
+    """Return an Ethernet frame's IPv6 bytes, including through VLAN tags."""
+    if len(frame) < 14:
+        return None
+    eth_type = struct.unpack_from("!H", frame, 12)[0]
+    offset = 14
+    while eth_type in (0x8100, 0x88A8, 0x9100):
+        if len(frame) < offset + 4:
+            return None
+        eth_type = struct.unpack_from("!H", frame, offset + 2)[0]
+        offset += 4
+    return frame[offset:] if eth_type == 0x86DD else None
+
+
+def _ipv6_fragment(ts: float, ip_bytes: bytes) -> PacketRecord:
+    """Decode the Fragment header without dpkt's ESP extension-header bug.
+
+    Only the first fragment contains the ESP/AH or transport header. Later
+    fragments are kept as protocol 44 so demux doesn't count them as complete
+    protected packets.
+    """
+    payload_len = struct.unpack_from("!H", ip_bytes, 4)[0]
+    end = min(len(ip_bytes), 40 + payload_len) if payload_len else len(ip_bytes)
+    next_header = ip_bytes[40]
+    offset = struct.unpack_from("!H", ip_bytes, 42)[0] >> 3
+    fragment_data = ip_bytes[48:end]
+    proto = next_header if offset == 0 else 44
+    sport = dport = None
+    tcp_flags = 0
+    payload = fragment_data
+    if offset == 0 and next_header == 17 and len(fragment_data) >= 8:
+        sport, dport = struct.unpack_from("!HH", fragment_data)
+        payload = fragment_data[8:]
+    elif offset == 0 and next_header == 6 and len(fragment_data) >= 20:
+        sport, dport = struct.unpack_from("!HH", fragment_data)
+        tcp_flags = fragment_data[13]
+        payload = fragment_data[(fragment_data[12] >> 4) * 4:]
+    return PacketRecord(
+        ts=float(ts),
+        src=_inet_str(ip_bytes[8:24], 6),
+        dst=_inet_str(ip_bytes[24:40], 6),
+        ip_proto=proto,
+        sport=sport,
+        dport=dport,
+        payload=payload,
+        ip_version=6,
+        length=end,
+        tcp_flags=tcp_flags,
+        ttl=ip_bytes[7],
+    )
+
+
 def stream(pcap_path: Path) -> Iterator[PacketRecord]:
     """Yield PacketRecord for each packet without loading the capture."""
     with open(pcap_path, "rb") as fh:
@@ -52,7 +104,15 @@ def stream_file(fh) -> Iterator[PacketRecord]:
     reader = dpkt.pcapng.Reader(fh) if magic == b"\x0a\x0d\x0d\x0a" else dpkt.pcap.Reader(fh)
 
     datalink = reader.datalink() if hasattr(reader, "datalink") else 1
+    raw_datalink = datalink in (101, 12, 14, 228, 229)
     for ts, buf in reader:
+        if raw_datalink:
+            ip6_bytes = buf if buf and buf[0] >> 4 == 6 else None
+        else:
+            ip6_bytes = _ipv6_from_ethernet(buf)
+        if ip6_bytes is not None and len(ip6_bytes) >= 48 and ip6_bytes[6] == 44:
+            yield _ipv6_fragment(ts, ip6_bytes)
+            continue
         # DLT_RAW (101/12/14), DLT_IPV4 (228), DLT_IPV6 (229): the buffer is
         # the bare IP packet (common for tcpdump -i any / crafted captures).
         if datalink in (101, 12, 14, 228, 229):

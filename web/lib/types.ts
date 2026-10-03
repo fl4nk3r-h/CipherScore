@@ -125,6 +125,18 @@ export interface SessionAccuracy {
   matched: number;
   compared: number;
   missing: number;
+  eligible: number;
+}
+
+export interface SessionVerification {
+  fields: Record<string, {
+    value: string | number | boolean | null;
+    source: "unavailable" | "configured" | "legacy_sa_state" | "gateway_vici" | "gateway_vici_rekey";
+    match: boolean | null;
+  }>;
+  eligible: number;
+  compared: number;
+  matched: number;
 }
 
 export interface LabRunStatus {
@@ -151,7 +163,9 @@ export interface LabSession {
   traffic_type: string;
   labels: GroundTruthLabels;
   pcap: string;
+  capture_issue?: string | null;
   accuracy?: SessionAccuracy | null;
+  verification?: SessionVerification | null;
 }
 
 export interface ReportContext {

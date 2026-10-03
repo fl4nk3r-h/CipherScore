@@ -29,6 +29,8 @@ def test_profile_change_stops_capture_before_gateway_recreate(monkeypatch):
     orchestrate.activate_profile("p07")
 
     assert calls[1:] == [
+        orchestrate._lab_compose("stop", "transport-client"),
+        orchestrate._lab_compose("stop", "transport-server"),
         orchestrate._capture_compose("stop", "capture"),
         orchestrate._lab_compose("up", "-d", "--force-recreate", "gw-a", "gw-b"),
         orchestrate._capture_compose("up", "-d", "--force-recreate", "capture"),
@@ -54,6 +56,8 @@ def test_run_sessions_reports_processed_skipped_and_completed(tmp_path, monkeypa
     monkeypatch.setattr(orchestrate, "ensure_stack", lambda profile: None)
     monkeypatch.setattr(orchestrate, "activate_profile", lambda profile: None)
     monkeypatch.setattr(orchestrate, "_run_one", lambda *args: None)
+    monkeypatch.setattr(orchestrate, "_existing_capture_valid",
+                        lambda manifest, _profile, _session: manifest.exists())
     profile = {"id": "p03", "traffic": ["voip", "web"], "duration_per_traffic": "2m"}
     existing = tmp_path / "data/sessions/p03-voip-0001/manifest.json"
     existing.parent.mkdir(parents=True)
@@ -86,3 +90,27 @@ def test_cli_writes_terminal_run_status(tmp_path, monkeypatch):
     assert state["processed"] == 1
     assert state["eta_seconds"] == 0
     assert state["finished_at"] >= state["started_at"]
+
+
+def test_existing_stack_rebinds_capture(monkeypatch):
+    calls = []
+    monkeypatch.setattr(orchestrate, "_container_running", lambda name: True)
+    monkeypatch.setattr(orchestrate, "_sh", lambda command, **kwargs: calls.append(command))
+
+    orchestrate.ensure_stack("p01")
+
+    assert calls == [orchestrate._capture_compose("up", "-d", "--force-recreate", "capture")]
+
+
+def test_cli_reports_partial_sweep_as_failure(tmp_path, monkeypatch, capsys):
+    from lab.runner import __main__ as cli
+
+    monkeypatch.setattr(cli.render, "select_profiles", lambda *_: [{"id": "p03"}])
+    monkeypatch.setattr(
+        cli.orchestrate, "run_sessions",
+        lambda *args, **kwargs: {"total": 2, "processed": 2, "completed": 1,
+                                 "skipped": 0, "failed": 1},
+    )
+
+    assert cli.main(["run", "--profiles", "p03"]) == 1
+    assert "1 failed of 2 planned sessions" in capsys.readouterr().out

@@ -7,9 +7,8 @@ CLI:
     python3 capture.py start <session_id> [interface]
     python3 capture.py stop  <session_id>
 
-The stop command waits for the tcpdump child to exit so the final pcap is
-flushed, then renames the last rotated file to the canonical
-`<session_id>.pcapng` named in the manifest (§3.2).
+The stop command waits for tcpdump to flush, then merges all rotated parts
+into the canonical `<session_id>.pcapng` named in the manifest (§3.2).
 """
 from __future__ import annotations
 
@@ -33,6 +32,9 @@ def _session_dir(session_id: str) -> Path:
 def start(session_id: str, interface: str = "eth0") -> int:
     out = _session_dir(session_id)
     stamp = int(time.time())
+    for stale in out.glob("session_*.pcapng*"):
+        stale.unlink()
+    (out / f"{session_id}.pcapng").unlink(missing_ok=True)
     # Stamp-based names: some tcpdump builds do not expand %s in -w; rotations
     # (-C 100) append 1,2,3… which the stop glob below still picks up.
     # -Z root: tcpdump's default privilege drop cannot create files in the
@@ -93,16 +95,22 @@ def stop(session_id: str) -> int:
     started = (out / "started_at").read_text().strip()
     (out / "ended_at").write_text(str(int(time.time())))
 
-    # Canonical artifact name per §3.2: <session_id>.pcapng. The newest/largest
-    # rotated file wins — a stale canonical from an aborted run must not mask
-    # the fresh capture.
-    rotated = sorted(out.glob("session_*"))
+    # Keep every rotation. Selecting the largest part can discard the IKE
+    # exchange in the first file and label a valid bulk run as invalid.
+    base = out / f"session_{started}.pcapng"
+    rotated = sorted(out.glob(f"{base.name}*"),
+                     key=lambda part: int(part.name[len(base.name):] or "0"))
     canonical = out / f"{session_id}.pcapng"
-    if rotated:
-        largest = max(rotated, key=lambda p: p.stat().st_size)
-        largest.replace(canonical)
-        for extra in rotated:
-            extra.unlink(missing_ok=True)
+    if len(rotated) == 1:
+        rotated[0].replace(canonical)
+    elif rotated:
+        merged = out / "merged.pcapng"
+        subprocess.run(["mergecap", "-F", "pcapng", "-w", str(merged),
+                        *(str(part) for part in rotated)], check=True,
+                       capture_output=True, text=True)
+        merged.replace(canonical)
+        for part in rotated:
+            part.unlink()
     pid_file.unlink(missing_ok=True)
     print(f"[capture] {session_id}: stopped (started {started})")
     return 0

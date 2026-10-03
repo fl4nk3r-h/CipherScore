@@ -4,6 +4,8 @@
 # Usage: video.sh <server_host> <duration_seconds>
 set -euo pipefail
 SERVER="${1:?server host required}"
+URL_HOST="$SERVER"
+[[ "$SERVER" == *:* ]] && URL_HOST="[$SERVER]"
 DURATION="${2:-120}"
 END=$((SECONDS + DURATION))
 
@@ -13,7 +15,7 @@ while [ $SECONDS -lt $END ]; do
   BR="${BITRATES[$((i % 3))]}"
   echo "[video] pulling HLS ladder ($BR) from $SERVER ..."
   ffmpeg -re -loglevel error \
-         -i "http://$SERVER/hls/stream.m3u8" \
+         -i "http://$URL_HOST/hls/stream.m3u8" \
          -t 20 -f null - || true
   i=$((i + 1))
 done
