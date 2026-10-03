@@ -4,7 +4,7 @@
   "integ": null,
   "pfs": null,
   "dh_group": null,
-  "traffic": null,
+  "traffic": "v0.2.0",
   "beaconing": null,
   "dga": null,
   "dns_tunneling": null,
