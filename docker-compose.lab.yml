@@ -91,7 +91,9 @@ services:
         ipv6_address: fd30::10
 
   server-b:
-    build: ./lab/images/server
+    build:
+      context: ./lab
+      dockerfile: images/server/Dockerfile
     <<: *lab-common
     container_name: server-b
     cap_add: [NET_ADMIN, NET_RAW]   # entrypoint assigns the 10.2.0.10 inner IP
@@ -105,3 +107,28 @@ services:
       lab-bridge:
         ipv4_address: 172.30.0.11
         ipv6_address: fd30::11
+
+  # Transport mode endpoints share the gateways' network namespaces, so their
+  # packets match the host-to-host XFRM selectors (172.30/fd30).
+  transport-client:
+    profiles: [transport]
+    build: ./lab/images/client
+    container_name: transport-client
+    network_mode: "container:gw-a"
+    depends_on: [gw-a]
+    entrypoint: ["sleep", "infinity"]
+    volumes:
+      - ./lab/traffic:/traffic:ro
+
+  transport-server:
+    profiles: [transport]
+    build:
+      context: ./lab
+      dockerfile: images/server/Dockerfile
+    container_name: transport-server
+    network_mode: "container:gw-b"
+    depends_on: [gw-b]
+    environment:
+      TRANSPORT_HOST: "1"
+    volumes:
+      - ./lab/traffic:/traffic:ro
